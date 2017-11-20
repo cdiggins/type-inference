@@ -2,7 +2,8 @@
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
 
-// Type inference for generic types, recursive types, and row-polymorphism.
+// Type inference algorithm based on HM which supports generic types,
+// recursive types, and row-polymorphism. 
 export module TypeInference 
 {
     // Base class of a type expression: either a TypeList, TypeVariable or TypeConstant
@@ -74,6 +75,37 @@ export module TypeInference
         [typeVarName:string] : TypeUnifier;
     }
 
+    // Returns a string repreentation of a type
+    export function typeToString(t:TypeExpr) : string {
+        if (t instanceof TypeVariable) 
+            return "'" + t.name;
+        else if (t instanceof TypeConstant) 
+            return t.name;
+        else if (t instanceof TypeList)
+            return "[" + t.types.map(typeToString).join(" ") + "]";
+        else 
+            throw new Error("Can't recognize type " + t);
+    }    
+
+    // Prints out a variable name and type 
+    export function logVarType(name:string, t:TypeExpr) {
+        console.log(name + " : " + typeToString(t));
+    }
+    
+    // Prints out a representation of a constraint 
+    export function logConstraint(tc:TypeConstraint) {
+        console.log("constraint " + typeToString(tc.typeSrc) + " <=> " + typeToString(tc.typeDest));
+    }
+    
+    // Prints out a representation of a unifier 
+    export function logUnifier(name:string, u:TypeUnifier, te:Engine) {
+        var t = te.getUnifiedType(u.unifier);
+        console.log("type unifier for " + name 
+            + ", variable " + typeToString(u.variable) 
+            + ", unifier " + typeToString(t)
+            + ", raw type " + typeToString(u.unifier));
+        }    
+
     // Use this class to infer the type signature for a function. 
     // For each statement and expression in the function you will call one of the following:
     // * addVarAssignment()
@@ -101,6 +133,8 @@ export module TypeInference
 
         // Given a type variable name find the unifier. Multiple type varialbles will map to the same unifier 
         unifiers : ITypeUnifierLookup = {};
+
+
 
         // Called for every constraint created. Says that "src" and "target" are equivalent types 
         addTypeConstraint(src:TypeExpr, target:TypeExpr, location = undefined) : TypeExpr {
@@ -323,6 +357,19 @@ export module TypeInference
         // Unifies the types of a constraint 
         _unifyConstraint(tc:TypeConstraint) {
             this._unifyTypes(tc.typeSrc, tc.typeDest);
+        }
+
+        // Debug function that dumps prints out a representation of the engine state. 
+        logState() {
+            console.log("# Variables");
+            for (var v in this.varToType) 
+                logVarType(v, this.varToType[v]);    
+            console.log("# Constraints");
+            for (var tc of this.constraints) 
+                logConstraint(tc);
+            console.log("# Unifiers");
+            for (var k in this.unifiers) 
+                logUnifier(k, this.unifiers[k], this);
         }
     }
 }

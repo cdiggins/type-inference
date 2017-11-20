@@ -13,7 +13,8 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// Type inference for generic types, recursive types, and row-polymorphism.
+// Type inference algorithm based on HM which supports generic types,
+// recursive types, and row-polymorphism. 
 var TypeInference;
 (function (TypeInference) {
     // Base class of a type expression: either a TypeList, TypeVariable or TypeConstant
@@ -87,6 +88,37 @@ var TypeInference;
         return TypeUnifier;
     }());
     TypeInference.TypeUnifier = TypeUnifier;
+    // Returns a string repreentation of a type
+    function typeToString(t) {
+        if (t instanceof TypeVariable)
+            return "'" + t.name;
+        else if (t instanceof TypeConstant)
+            return t.name;
+        else if (t instanceof TypeList)
+            return "[" + t.types.map(typeToString).join(" ") + "]";
+        else
+            throw new Error("Can't recognize type " + t);
+    }
+    TypeInference.typeToString = typeToString;
+    // Prints out a variable name and type 
+    function logVarType(name, t) {
+        console.log(name + " : " + typeToString(t));
+    }
+    TypeInference.logVarType = logVarType;
+    // Prints out a representation of a constraint 
+    function logConstraint(tc) {
+        console.log("constraint " + typeToString(tc.typeSrc) + " <=> " + typeToString(tc.typeDest));
+    }
+    TypeInference.logConstraint = logConstraint;
+    // Prints out a representation of a unifier 
+    function logUnifier(name, u, te) {
+        var t = te.getUnifiedType(u.unifier);
+        console.log("type unifier for " + name
+            + ", variable " + typeToString(u.variable)
+            + ", unifier " + typeToString(t)
+            + ", raw type " + typeToString(u.unifier));
+    }
+    TypeInference.logUnifier = logUnifier;
     // Use this class to infer the type signature for a function. 
     // For each statement and expression in the function you will call one of the following:
     // * addVarAssignment()
@@ -320,6 +352,20 @@ var TypeInference;
         // Unifies the types of a constraint 
         Engine.prototype._unifyConstraint = function (tc) {
             this._unifyTypes(tc.typeSrc, tc.typeDest);
+        };
+        // Debug function that dumps prints out a representation of the engine state. 
+        Engine.prototype.logState = function () {
+            console.log("# Variables");
+            for (var v in this.varToType)
+                logVarType(v, this.varToType[v]);
+            console.log("# Constraints");
+            for (var _i = 0, _a = this.constraints; _i < _a.length; _i++) {
+                var tc = _a[_i];
+                logConstraint(tc);
+            }
+            console.log("# Unifiers");
+            for (var k in this.unifiers)
+                logUnifier(k, this.unifiers[k], this);
         };
         return Engine;
     }());
