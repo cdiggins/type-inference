@@ -12,6 +12,22 @@ lists (e.g. `[function, T, [T, T]]`).
 
 The algorithm works by assigning a unique type variable to each argument and the return result. It then builds a list of constraints based on how each variable is used. When `resolve()` is called all constraints are unified to build a series of type sets associated with each type variable referenced in the system. 
 
+"Row variables" in this case are simple existential polymorphism: they are not higher-order kinds.
+
+## Recursive Function Types
+
+During unification a type list might have a reference to a type list that is enclosing itself. This would generate 
+a cyclical relation and indicates a recursive type. 
+
+It is useful to detect whether the cyclical type relation indicate
+is to an enclosing function. 
+
+Because a recursive function is a type list containing N nested type-lists, identifying the recursive relation requires
+substantial bookkeeping. 
+
+ I am used in a function, here is my enclosing function type. 
+
+
 References:
 * Basic Polymorphic Type-Checking by Luca Cardelli (http://research.microsoft.com/users/luca/Papers/BasicTypechecking.pdf)
 * http://smallshire.org.uk/sufficientlysmall/2010/04/11/a-hindley-milner-type-inference-implementation-in-python/
@@ -23,4 +39,8 @@ References:
 * http://www.cs.uu.nl/research/techreps/repo/CS-2002/2002-031.pdf - Generalizing Hindley-Milner Type Inference Algorithms by Bastiaan Heeren
 * http://fsharpcode.blogspot.ca/2010/08/hindley-milner-type-inference-sample.html -
 * https://www.cl.cam.ac.uk/teaching/1415/L28/rows.pdf  
-& http://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
+* http://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
+* https://cs.stackexchange.com/questions/53998/what-are-the-major-differences-between-row-polymorphism-and-subtyping 
+* https://dl.acm.org/citation.cfm?id=581690.581699 - 
+Techniques for embedding postfix languages in Haskell 
+

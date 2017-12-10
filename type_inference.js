@@ -1,5 +1,7 @@
 "use strict";
-// General Purpose Type Inference Made Simple
+// An implementation of Hindley Milner Type Inference aka Algorithm W in TypeScript
+// Extended with support for simple recursive function types and row-polymorphism
+// https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system||
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
 var __extends = (this && this.__extends) || (function () {
@@ -17,6 +19,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // recursive types, and row-polymorphism. 
 var TypeInference;
 (function (TypeInference) {
+    var trace = false;
     // Base class of a type expression: either a TypeList, TypeVariable or TypeConstant
     var TypeExpr = (function () {
         function TypeExpr() {
@@ -24,9 +27,8 @@ var TypeInference;
         return TypeExpr;
     }());
     TypeInference.TypeExpr = TypeExpr;
-    // A list of types can be used to represent function argument types, or tuple types. The "kind" of the list 
-    // can be encoded as type constant in the first position. For example: 
-    // Tuple<string, int> could be encoded as [tuple, string, int] or a Func<T, int, U> as [func, $T, int, $U]
+    // A list of types can be used to represent function types or tuple types. 
+    // This is called a PolyType since it may contain variables with a for-all qualifier
     var TypeList = (function (_super) {
         __extends(TypeList, _super);
         function TypeList(types) {
@@ -34,9 +36,36 @@ var TypeInference;
             _this.types = types;
             return _this;
         }
+        TypeList.prototype.toString = function () {
+            return "[" + this.types.join(' ') + "]";
+        };
         return TypeList;
     }(TypeExpr));
     TypeInference.TypeList = TypeList;
+    // A specialization of TypeList that consists of only two types
+    var TypePair = (function (_super) {
+        __extends(TypePair, _super);
+        function TypePair(typeA, typeB) {
+            var _this = _super.call(this, [typeA, typeB]) || this;
+            _this.typeA = typeA;
+            _this.typeB = typeB;
+            return _this;
+        }
+        return TypePair;
+    }(TypeList));
+    TypeInference.TypePair = TypePair;
+    // A type function is represented as a TypeList of 3 items with an arrow as the second type. 
+    var TypeFunction = (function (_super) {
+        __extends(TypeFunction, _super);
+        function TypeFunction(inputs, outputs) {
+            var _this = _super.call(this, [inputs, new TypeConstant('->'), outputs]) || this;
+            _this.inputs = inputs;
+            _this.outputs = outputs;
+            return _this;
+        }
+        return TypeFunction;
+    }(TypeList));
+    TypeInference.TypeFunction = TypeFunction;
     // A type variable is used for generics (e.g. T0, TR)
     var TypeVariable = (function (_super) {
         __extends(TypeVariable, _super);
@@ -45,6 +74,9 @@ var TypeInference;
             _this.name = name;
             return _this;
         }
+        TypeVariable.prototype.toString = function () {
+            return "'" + this.name;
+        };
         return TypeVariable;
     }(TypeExpr));
     TypeInference.TypeVariable = TypeVariable;
@@ -56,6 +88,9 @@ var TypeInference;
             _this.name = name;
             return _this;
         }
+        TypeConstant.prototype.toString = function () {
+            return this.name;
+        };
         return TypeConstant;
     }(TypeExpr));
     TypeInference.TypeConstant = TypeConstant;
@@ -70,66 +105,87 @@ var TypeInference;
         return TypeConstraint;
     }());
     TypeInference.TypeConstraint = TypeConstraint;
-    // An error message regarding a type error 
-    var TypeError = (function () {
-        function TypeError(msg, data) {
-            this.msg = msg;
-            this.data = data;
-        }
-        return TypeError;
-    }());
-    TypeInference.TypeError = TypeError;
-    // A type unifier is a mapping from a type variable to a best fit type variable
+    // A type unifier is a mapping from a type variable to a best-fit type
     var TypeUnifier = (function () {
-        function TypeUnifier(variable, unifier) {
-            this.variable = variable;
+        function TypeUnifier(name, unifier) {
+            this.name = name;
             this.unifier = unifier;
         }
         return TypeUnifier;
     }());
     TypeInference.TypeUnifier = TypeUnifier;
-    // Returns a string repreentation of a type
-    function typeToString(t) {
-        if (t instanceof TypeVariable)
-            return "'" + t.name;
-        else if (t instanceof TypeConstant)
-            return t.name;
-        else if (t instanceof TypeList)
-            return "[" + t.types.map(typeToString).join(" ") + "]";
-        else
-            throw new Error("Can't recognize type " + t);
+    // An array of types can be encoded as nested (recursive) type-lists with 
+    // a row-variable in the final tail position. This allows two differently sized
+    // type lists to be unified where desired (e.g. encoding a type stack).
+    // This enables the algorithm to support row-polymorphism
+    function arrayToTypePair(types, rowVar) {
+        return (types.length == 0)
+            ? rowVar
+            : new TypePair(types[0], arrayToTypePair(types.slice(1), rowVar));
     }
-    TypeInference.typeToString = typeToString;
+    TypeInference.arrayToTypePair = arrayToTypePair;
     // Prints out a variable name and type 
     function logVarType(name, t) {
-        console.log(name + " : " + typeToString(t));
+        console.log(name + " : " + t);
     }
     TypeInference.logVarType = logVarType;
     // Prints out a representation of a constraint 
     function logConstraint(tc) {
-        console.log("constraint " + typeToString(tc.typeSrc) + " <=> " + typeToString(tc.typeDest));
+        console.log("constraint " + tc.typeSrc + " <=> " + tc.typeDest);
     }
     TypeInference.logConstraint = logConstraint;
     // Prints out a representation of a unifier 
     function logUnifier(name, u, te) {
         var t = te.getUnifiedType(u.unifier);
-        console.log("type unifier for " + name
-            + ", variable " + typeToString(u.variable)
-            + ", unifier " + typeToString(t)
-            + ", raw type " + typeToString(u.unifier));
+        console.log("type unifier for " + name + ", unifier name " + u.name + ", unifying type " + t);
     }
     TypeInference.logUnifier = logUnifier;
+    // Returns true if and only if the given type expression is a TypeConstant with the provided name
+    function isConstantType(t, name) {
+        return t instanceof TypeConstant && t.name == name;
+    }
+    TypeInference.isConstantType = isConstantType;
+    // Called internally to construct unique variable names in the type signature
+    function renameTypeVars(tx, id, lookup) {
+        if (lookup === void 0) { lookup = {}; }
+        if (tx instanceof TypeVariable) {
+            if (tx.name in lookup)
+                return lookup[tx.name];
+            else
+                return lookup[tx.name] = new TypeVariable(id + tx.name);
+        }
+        else if (tx instanceof TypeConstant)
+            return tx;
+        else if (tx instanceof TypePair)
+            return new TypePair(renameTypeVars(tx.typeA, id, lookup), renameTypeVars(tx.typeB, id, lookup));
+        else if (tx instanceof TypeFunction)
+            return new TypeFunction(renameTypeVars(tx.inputs, id, lookup), renameTypeVars(tx.outputs, id, lookup));
+        else if (tx instanceof TypeList)
+            return new TypeList(tx.types.map(function (t) { return renameTypeVars(t, id, lookup); }));
+        else
+            throw new Error("Unrecognized type for " + tx);
+    }
+    TypeInference.renameTypeVars = renameTypeVars;
+    // Given two function types returns the composed types of functions 
+    function getComposedType(a, b) {
+        // First rename the type vars 
+        var ta = renameTypeVars(a, 0);
+        var tb = renameTypeVars(b, 1);
+        // Get the results and args 
+        var te = new Engine();
+        // Add the constraint (results of A = args of B)
+        te.addTypeConstraint(ta.outputs, tb.inputs);
+        te.resolve();
+        // Create the new result type (args of A -> results of B)
+        var r = new TypeFunction(ta.inputs, tb.outputs);
+        // Get the unification result 
+        var f = te.getUnifiedType(r);
+        if (trace)
+            te.logState();
+        return f;
+    }
+    TypeInference.getComposedType = getComposedType;
     // Use this class to infer the type signature for a function. 
-    // For each statement and expression in the function you will call one of the following:
-    // * addVarAssignment()
-    // * addVarDeclaration()
-    // * addFunctionCall()
-    // * addReturnStatement()
-    // Some usage notes: 
-    // * Use getVarType() to get the internal type expression associated with a variable
-    // * Use addFunctionCall() to get the internal type expression associated with a function call 
-    // * Variables must be already uniquely named based on the scope.
-    // * Symbolic operators (e.g. && and +) or built in sstatements (e.g. if and while) should be treated as function calls. 
     var Engine = (function () {
         function Engine() {
             // Special recursive type. 
@@ -140,9 +196,9 @@ var TypeInference;
             this.varToType = {};
             // A list of all constructed type constraints 
             this.constraints = [];
-            // Given a type variable name find the unifier. Multiple type varialbles will map to the same unifier 
-            this.unifiers = {};
         }
+        //=================================
+        // Functions for setting up the constraints 
         // Called for every constraint created. Says that "src" and "target" are equivalent types 
         Engine.prototype.addTypeConstraint = function (src, target, location) {
             if (location === void 0) { location = undefined; }
@@ -168,7 +224,7 @@ var TypeInference;
             if (func.types.length + 1 != args.length)
                 throw Error("The number of arguments " + args.length + " is not what was expected: " + func.types.length + 1);
             // Provide unique variable names to the type signature. 
-            func = this._renameTypeVars(func, this.constraints.length);
+            func = renameTypeVars(func, this.constraints.length);
             // Constrain the arguments 
             for (var i = 0; i < args.length; ++i)
                 this.addTypeConstraint(args[i], func.types[i + 1], location);
@@ -179,23 +235,13 @@ var TypeInference;
         Engine.prototype.addReturnStatement = function (expr, location) {
             this.addVarConstraint(this.resultVarName, expr, location);
         };
-        // Returns true if a type expression is a type list and reference the variable
-        Engine.prototype._hasRecursiveReference = function (expr, varName) {
-            if (expr instanceof TypeList) {
-                for (var i = 0; i < expr.types.length; ++i) {
-                    var t = expr.types[i];
-                    if (t instanceof TypeVariable)
-                        if (t.name == varName)
-                            return true;
-                }
-            }
-            return false;
-        };
         // Replaces all variables in a type expression with the unified version
         Engine.prototype.getUnifiedType = function (expr, vars) {
             var _this = this;
             if (vars === void 0) { vars = []; }
-            if (expr instanceof TypeConstant)
+            if (!this.unifiers)
+                throw new Error("Resolve hasn't been called yet");
+            else if (expr instanceof TypeConstant)
                 return expr;
             else if (expr instanceof TypeVariable) {
                 // If we encountered the type variable previously, it meant that there is a recursive relation
@@ -205,7 +251,7 @@ var TypeInference;
                 }
                 var u = this.unifiers[expr.name];
                 if (!u)
-                    throw new Error("Could not find unifier");
+                    return expr;
                 else if (u.unifier instanceof TypeVariable)
                     return u.unifier;
                 else if (u.unifier instanceof TypeConstant)
@@ -219,14 +265,20 @@ var TypeInference;
                 else
                     throw new Error("Unhandled kind of type " + expr);
             }
+            else if (expr instanceof TypePair)
+                return new TypePair(this.getUnifiedType(expr.typeA), this.getUnifiedType(expr.typeB));
+            else if (expr instanceof TypeFunction)
+                return new TypeFunction(this.getUnifiedType(expr.inputs), this.getUnifiedType(expr.outputs));
             else if (expr instanceof TypeList)
                 return new TypeList(expr.types.map(function (t) { return _this.getUnifiedType(t, vars); }));
             else
                 throw new Error("Unrecognized kind of type expression " + expr);
         };
-        // Resolves all constraints         
+        // Resolves all constraints.
+        // Has to be called after the constraints are all created and before "getUnifiedType"         
         Engine.prototype.resolve = function () {
             // Initialization
+            this.unifiers = {};
             for (var _i = 0, _a = this.constraints; _i < _a.length; _i++) {
                 var tc = _a[_i];
                 this._createUnifiers(tc.typeSrc);
@@ -238,6 +290,8 @@ var TypeInference;
                 this._unifyConstraint(tc);
             }
         };
+        //===========================
+        // Internal implementation algorithms
         // Creates initial type unifiers for variables
         Engine.prototype._createUnifiers = function (t) {
             if (t instanceof TypeList)
@@ -245,96 +299,81 @@ var TypeInference;
             if (t instanceof TypeVariable)
                 this.unifiers[t.name] = new TypeUnifier(t, t);
         };
-        // Called internally to construct unique variable names in the type signature
-        Engine.prototype._renameTypeVars = function (tx, id, lookup) {
-            var _this = this;
-            if (lookup === void 0) { lookup = {}; }
-            if (tx instanceof TypeVariable) {
-                if (tx.name in lookup) {
-                    lookup[tx.name];
-                }
-                else {
-                    return lookup[tx.name] = new TypeVariable("C" + id + "$" + tx.name);
-                }
-            }
-            else if (tx instanceof TypeConstant)
-                return tx;
-            else if (tx instanceof TypeList)
-                return new TypeList(tx.types.map(function (t) { return _this._renameTypeVars(tx, id, lookup); }));
-        };
         // Choose one of two unifiers, or continue the unification process if necessary
-        Engine.prototype._chooseBestUnifier = function (t1, t2) {
+        Engine.prototype._chooseBestUnifier = function (t1, t2, depth) {
+            var r;
             if (t1 instanceof TypeVariable && t2 instanceof TypeVariable)
-                return t1;
-            if (t1 instanceof TypeVariable)
-                return t2;
-            if (t2 instanceof TypeVariable)
-                return t1;
-            return this._unifyTypes(t1, t2);
+                r = t1;
+            else if (t1 instanceof TypeVariable)
+                r = t2;
+            else if (t2 instanceof TypeVariable)
+                r = t1;
+            else
+                r = this._unifyTypes(t1, t2, depth + 1);
+            if (trace)
+                console.log("Chose type for unification " + r + " between " + t1 + " and " + t2 + " at depth " + depth);
+            return r;
         };
-        // Unifying lists is complicated if they are different lengths. 
-        // In which case the last type of the shorter list, if it is a variable, is assumed to be a row variable. 
-        Engine.prototype._unifyLists = function (list1, list2) {
-            var n = list1.types.length;
+        // Unifying lists involves unifying each element
+        Engine.prototype._unifyLists = function (list1, list2, depth) {
+            if (list1.types.length != list2.types.length)
+                throw new Error("Cannot unify differently sized lists");
+            if (list1 instanceof TypeFunction) {
+                if (!(list2 instanceof TypeFunction))
+                    throw new Error("Can only unify a TypeFunction with another TypeFunction");
+                return new TypeFunction(this._unifyTypes(list1.inputs, list2.inputs, depth), this._unifyTypes(list1.outputs, list2.outputs, depth));
+            }
+            if (list1 instanceof TypePair) {
+                if (!(list2 instanceof TypePair))
+                    throw new Error("Can only unify a TypePair with another TypePair");
+                return new TypePair(this._unifyTypes(list1.typeA, list2.typeA, depth), this._unifyTypes(list1.typeB, list2.typeB, depth));
+            }
             var rtypes = [];
-            // Simple case: both lists are the same length 
-            if (list1.types.length == list2.types.length) {
-                for (var i = 0; i < n; ++i)
-                    rtypes.push(this._unifyTypes(list1.types[i], list2.types[i]));
-                return new TypeList(rtypes);
-            }
-            else if (list1.types.length > list2.types.length) {
-                return this._unifyLists(list2, list1);
-            }
-            else {
-                // The second list is longer. This means the last variable in the first list is a row variable
-                var rowVariable = list1.types[n - 1];
-                if (!(rowVariable instanceof TypeVariable))
-                    throw new Error("When unifying differently sized lists, the last member must be a variable");
-                // Unify the first part of the list 
-                for (var i = 0; i < n - 1; ++i)
-                    rtypes.push(this._unifyTypes(list1.types[i], list2.types[i]));
-                // Unify the row variable with the rest of the list 
-                var rest = new TypeList(list2.types.slice(n - 1));
-                this._unifyTypes(rowVariable, rest);
-                // Put the new types in the list we are generating 
-                for (var _i = 0, _a = rest.types; _i < _a.length; _i++) {
-                    var t = _a[_i];
-                    rtypes.push(t);
-                }
-                return new TypeList(rtypes);
-            }
+            for (var i = 0; i < list1.types.length; ++i)
+                rtypes.push(this._unifyTypes(list1.types[i], list2.types[i], depth));
+            return new TypeList(rtypes);
+        };
+        // Computes the best unifier between the current unifier and the new variable.        
+        // Stores the result in the unifier name.
+        Engine.prototype._updateUnifier = function (varName, t, depth) {
+            var u = this.unifiers[varName];
+            u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
+            if (u.unifier instanceof TypeVariable)
+                this.unifiers[u.unifier.name] = u;
+            if (t instanceof TypeVariable)
+                this.unifiers[t.name] = u;
+            return u.unifier;
+        };
+        // Unifying two variables. 
+        Engine.prototype._unifyTypeVars = function (a, b, depth) {
+            var t = this.unifiers[b.name].unifier;
+            var r = this._updateUnifier(a.name, t, depth);
+            this.unifiers[b.name] = this.unifiers[a.name];
+            return r;
         };
         // Unify both types, returning the most specific type possible. 
         // When a type variable is unified with something, the new unifier is stored. 
+        // Note: TypeFunctions and TypePairs ar handled as TypeLists
         // * Constants are preferred over lists and variables
         // * Lists are preferred over variables
         // * Given two variables, the first one is chosen. 
-        Engine.prototype._unifyTypes = function (t1, t2) {
+        Engine.prototype._unifyTypes = function (t1, t2, depth) {
+            if (trace)
+                console.log("Unification depth " + depth + " of " + t1 + " and " + t2);
             if (!t1 || !t2)
                 throw new Error("Missing type expression");
             if (t1 == t2)
                 return t1;
             // Variables are least preferred.  
             if (t1 instanceof TypeVariable) {
-                var u = this.unifiers[t1.name];
-                if (t2 instanceof TypeVariable) {
-                    var v = this.unifiers[t2.name];
-                    // Short-cut if the same unifier is shared 
-                    if (u == v)
-                        return u.unifier;
-                    u.unifier = this._chooseBestUnifier(u.unifier, v.unifier);
-                    // Set the same unifier for both type-variables
-                    this.unifiers[t2.name] = u;
-                }
+                // Two variable have a special path: 
+                if (t2 instanceof TypeVariable)
+                    return this._unifyTypeVars(t1, t2, depth);
                 else
-                    u.unifier = this._chooseBestUnifier(u.unifier, t2);
-                return u.unifier;
+                    return this._updateUnifier(t1.name, t2, depth);
             }
             else if (t2 instanceof TypeVariable) {
-                var u = this.unifiers[t2.name];
-                u.unifier = this._chooseBestUnifier(u.unifier, t1);
-                return u.unifier;
+                return this._updateUnifier(t2.name, t1, depth);
             }
             else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant) {
                 if (t1.name != t2.name)
@@ -345,14 +384,28 @@ var TypeInference;
                 throw new Error("Can only unify constants with variables and other constants");
             }
             else if (t1 instanceof TypeList && t2 instanceof TypeList) {
-                return this._unifyLists(t1, t2);
+                return this._unifyLists(t1, t2, depth + 1);
             }
             throw new Error("Internal error, unexpected code path: unhandled kinds of types for unification");
         };
         // Unifies the types of a constraint 
         Engine.prototype._unifyConstraint = function (tc) {
-            this._unifyTypes(tc.typeSrc, tc.typeDest);
+            this._unifyTypes(tc.typeSrc, tc.typeDest, 0);
         };
+        // Returns true if a type expression is a type list and reference the variable
+        Engine.prototype._hasRecursiveReference = function (expr, varName) {
+            if (expr instanceof TypeList) {
+                for (var i = 0; i < expr.types.length; ++i) {
+                    var t = expr.types[i];
+                    if (t instanceof TypeVariable)
+                        if (t.name == varName)
+                            return true;
+                }
+            }
+            return false;
+        };
+        //===========================================
+        // Debugging functions
         // Debug function that dumps prints out a representation of the engine state. 
         Engine.prototype.logState = function () {
             console.log("# Variables");

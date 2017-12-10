@@ -8,11 +8,16 @@ function RegisterGrammars()
         var _this = this;
         this.typeExprRec            = m.delay(() => { return _this.typeExpr});
         this.typeList               = m.guardedSeq('[', m.ws, this.typeExprRec.ws.zeroOrMore, ']').ast;
+        this.funcInput              = this.typeExprRec.ws.zeroOrMore.ast;
+        this.funcOutput             = this.typeExprRec.ws.zeroOrMore.ast;
+        this.typeFunc               = m.guardedSeq('(', m.ws, this.funcInput, '->', m.ws, this.funcOutput, ')').ast;
         this.typeVar                = m.guardedSeq("'", m.identifier).ast;
         this.typeConstant           = m.identifier.ast;
-        this.typeExpr               = m.choice(this.typeList, this.typeVar, this.typeConstant).ast;        
+        this.typeExpr               = m.choice(this.typeList, this.typeFunc, this.typeVar, this.typeConstant).ast;        
     }        
 
+    m.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);
+    
     var catGrammar = new function() 
     {
         var _this = this;
@@ -20,11 +25,11 @@ function RegisterGrammars()
         this.quotation = m.guardedSeq('[', m.ws, this.recTerm.ws.zeroOrMore, ']').ast;
         this.term = m.choice(this.quotation, m.identifier, m.integer).ast; 
         this.definedName = m.identifier.ast;
-        this.definition = m.guardedSeq(m.keyword('define').ws, this.definedName, m.guardedSeq('{', this.term.zeroOrMore, '}')).ast;
+        this.definition = m.guardedSeq(m.keyword('define').ws, this.definedName, m.ws, ":", m.ws, typeGrammar.typeExpr).ast;
+        this.extern = m.guardedSeq(m.keyword('define').ws, this.definedName, m.ws, m.guardedSeq('{', this.term.zeroOrMore, '}')).ast;
         this.program = m.choice(this.definition, this.term).zeroOrMore.ast;
     }    
 
-    m.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);
     m.registerGrammar('cat', catGrammar, catGrammar.program);
 }
 
@@ -44,6 +49,13 @@ function astToType(ast:m.AstNode) : ti.TypeExpr {
             return new ti.TypeVariable(ast.allText.substr(1));
         case "typeConstant":
             return new ti.TypeConstant(ast.allText);
+        case "typeFunc":
+            return new ti.TypeList([
+                new ti.TypeConstant('function'),
+                astToType(ast.children[0]), 
+                astToType(ast.children[1])]);
+        case "funcInput":
+        case "funcOutput":
         case "typeList":
             return new ti.TypeList(ast.children.map(astToType));
         case "typeExpr":
@@ -60,7 +72,7 @@ function TestParseType(input:string)
     var ast = m.parsers["type"](input);
     // console.log(ast);
     var t = astToType(ast);
-    console.log("input = " + ti.typeToString(t));
+    console.log("input = " + t);
 }
 
 
@@ -72,6 +84,8 @@ TestParseType("[a]");
 TestParseType("[ab cd]");
 TestParseType("[ab [cd] [ef]]");
 TestParseType("[[][a][[]b]'abc]");
+TestParseType("('a 'b -> 'c 'd)");
+TestParseType("(( -> ) -> ('c -> [abc]))");
 
 function TestConstraints(a:string, b:string)
 {
@@ -89,6 +103,7 @@ TestConstraints("int", "int");
 TestConstraints("['a]", "[int]");
 TestConstraints("['a int 'b]", "[int int float string]");
 TestConstraints("'a", "['a int]");
+TestConstraints("('a -> 'b)", "(int int -> float)");
 
 declare var process : any;
 process.exit();

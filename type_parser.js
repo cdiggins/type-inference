@@ -7,20 +7,24 @@ function RegisterGrammars() {
         var _this = this;
         this.typeExprRec = myna_1.Myna.delay(function () { return _this.typeExpr; });
         this.typeList = myna_1.Myna.guardedSeq('[', myna_1.Myna.ws, this.typeExprRec.ws.zeroOrMore, ']').ast;
+        this.funcInput = this.typeExprRec.ws.zeroOrMore.ast;
+        this.funcOutput = this.typeExprRec.ws.zeroOrMore.ast;
+        this.typeFunc = myna_1.Myna.guardedSeq('(', myna_1.Myna.ws, this.funcInput, '->', myna_1.Myna.ws, this.funcOutput, ')').ast;
         this.typeVar = myna_1.Myna.guardedSeq("'", myna_1.Myna.identifier).ast;
         this.typeConstant = myna_1.Myna.identifier.ast;
-        this.typeExpr = myna_1.Myna.choice(this.typeList, this.typeVar, this.typeConstant).ast;
+        this.typeExpr = myna_1.Myna.choice(this.typeList, this.typeFunc, this.typeVar, this.typeConstant).ast;
     };
+    myna_1.Myna.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);
     var catGrammar = new function () {
         var _this = this;
         this.recTerm = myna_1.Myna.delay(function () { return _this.term; });
         this.quotation = myna_1.Myna.guardedSeq('[', myna_1.Myna.ws, this.recTerm.ws.zeroOrMore, ']').ast;
         this.term = myna_1.Myna.choice(this.quotation, myna_1.Myna.identifier, myna_1.Myna.integer).ast;
         this.definedName = myna_1.Myna.identifier.ast;
-        this.definition = myna_1.Myna.guardedSeq(myna_1.Myna.keyword('define').ws, this.definedName, myna_1.Myna.guardedSeq('{', this.term.zeroOrMore, '}')).ast;
+        this.definition = myna_1.Myna.guardedSeq(myna_1.Myna.keyword('define').ws, this.definedName, myna_1.Myna.ws, ":", myna_1.Myna.ws, typeGrammar.typeExpr).ast;
+        this.extern = myna_1.Myna.guardedSeq(myna_1.Myna.keyword('define').ws, this.definedName, myna_1.Myna.ws, myna_1.Myna.guardedSeq('{', this.term.zeroOrMore, '}')).ast;
         this.program = myna_1.Myna.choice(this.definition, this.term).zeroOrMore.ast;
     };
-    myna_1.Myna.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);
     myna_1.Myna.registerGrammar('cat', catGrammar, catGrammar.program);
 }
 RegisterGrammars();
@@ -36,6 +40,14 @@ function astToType(ast) {
             return new type_inference_1.TypeInference.TypeVariable(ast.allText.substr(1));
         case "typeConstant":
             return new type_inference_1.TypeInference.TypeConstant(ast.allText);
+        case "typeFunc":
+            return new type_inference_1.TypeInference.TypeList([
+                new type_inference_1.TypeInference.TypeConstant('function'),
+                astToType(ast.children[0]),
+                astToType(ast.children[1])
+            ]);
+        case "funcInput":
+        case "funcOutput":
         case "typeList":
             return new type_inference_1.TypeInference.TypeList(ast.children.map(astToType));
         case "typeExpr":
@@ -50,7 +62,7 @@ function TestParseType(input) {
     var ast = myna_1.Myna.parsers["type"](input);
     // console.log(ast);
     var t = astToType(ast);
-    console.log("input = " + type_inference_1.TypeInference.typeToString(t));
+    console.log("input = " + t);
 }
 TestParseType("abc");
 TestParseType("'abc");
@@ -60,6 +72,8 @@ TestParseType("[a]");
 TestParseType("[ab cd]");
 TestParseType("[ab [cd] [ef]]");
 TestParseType("[[][a][[]b]'abc]");
+TestParseType("('a 'b -> 'c 'd)");
+TestParseType("(( -> ) -> ('c -> [abc]))");
 function TestConstraints(a, b) {
     var engine = new type_inference_1.TypeInference.Engine();
     var expr1 = stringToType(a);
@@ -74,4 +88,6 @@ TestConstraints("int", "int");
 TestConstraints("['a]", "[int]");
 TestConstraints("['a int 'b]", "[int int float string]");
 TestConstraints("'a", "['a int]");
+TestConstraints("('a -> 'b)", "(int int -> float)");
+process.exit();
 //# sourceMappingURL=type_parser.js.map

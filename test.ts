@@ -13,6 +13,7 @@ import { TypeInference as ti } from "./type_inference";
         te.resolve();
         te.logState();
     }
+    
     {
         console.log("");
         console.log("## Test B");

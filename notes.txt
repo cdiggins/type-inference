@@ -1,0 +1,628 @@
+Debugging with legacy protocol because Node.js v6.11.0 was detected.
+'C:\Program Files\nodejs\node.exe' --debug-brk=38267 --nolazy cat.js 
+Debugger listening on [::]:38267
+apply apply : ([('0S -> [('1S -> '1R) '1S]) '0S] -> '1R)
+apply quote : ([('0S -> ['1a '1S]) '0S] -> [('1R -> ['1a '1R]) '1S])
+apply compose : ([('0S -> [('1A -> '1B) [('1B -> '1C) '1S]]) '0S] -> [('1A -> '1C) '1S])
+apply dup : ([('0S -> ['1a '1S]) '0S] -> ['1a ['1a '1S]])
+apply pop : ([('0S -> ['1a '1S]) '0S] -> '1S)
+apply swap : ([('0S -> ['1a ['1b '1S]]) '0S] -> ['1b ['1a '1S]])
+apply dip : ([('0S -> [('1S -> '1R) ['1a '1S]]) '0S] -> ['1a '1R])
+apply cond : ([('0S -> [Bool ['1a ['1a '1S]]]) '0S] -> ['1a '1S])
+apply while : ([('0S -> [('1S -> [Bool '1R]) [('1R -> '1S) '1S]]) '0S] -> '1S)
+apply eq : ([('0S -> ['1a ['1a '1S]]) '0S] -> [Bool '1S])
+apply neq : ([('0S -> ['1a ['1a '1S]]) '0S] -> [Bool '1S])
+apply add : ([('0S -> [Num [Num '1S]]) '0S] -> [Num '1S])
+apply neg : ([('0S -> [Num '1S]) '0S] -> [Num '1S])
+apply sub : ([('0S -> [Num [Num '1S]]) '0S] -> [Num '1S])
+apply mul : ([('0S -> [Num [Num '1S]]) '0S] -> [Num '1S])
+apply div : ([('0S -> [Num [Num '1S]]) '0S] -> [Num '1S])
+apply mod : ([('0S -> [Num [Num '1S]]) '0S] -> [Num '1S])
+apply not : ([('0S -> [Bool '1S]) '0S] -> [Bool '1S])
+apply gt : ([('0S -> [Num [Num '1S]]) '0S] -> [Bool '1S])
+apply gteq : ([('0S -> [Num [Num '1S]]) '0S] -> [Bool '1S])
+apply lt : ([('0S -> [Num [Num '1S]]) '0S] -> [Bool '1S])
+apply lteq : ([('0S -> [Num [Num '1S]]) '0S] -> [Bool '1S])
+apply and : ([('0S -> [Bool [Bool '1S]]) '0S] -> [Bool '1S])
+apply or : ([('0S -> [Bool [Bool '1S]]) '0S] -> [Bool '1S])
+apply xor : ([('0S -> [Bool [Bool '1S]]) '0S] -> [Bool '1S])
+quote apply : (['0a '0S] -> ['0a '0S])
+quote quote : (['0a '0S] -> [('1R -> [('0R -> ['0a '0R]) '1R]) '0S])
+quote compose : (['0a [(['0a '0R] -> '1C) '1S]] -> [('0R -> '1C) '1S])
+quote dup : (['0a '0S] -> [('0R -> ['0a '0R]) [('0R -> ['0a '0R]) '0S]])
+quote pop : (['0a '0S] -> '0S)
+quote swap : (['0a ['1b '1S]] -> ['1b [('0R -> ['0a '0R]) '1S]])
+quote dip : (['0a ['1a '0R]] -> ['1a ['0a '0R]])
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can only unify constants with variables and other constants
+quote while : ([Bool [('0R -> '0R) '0R]] -> '0R)
+quote eq : (['0a [('0R -> ['0a '0R]) '1S]] -> [Bool '1S])
+quote neq : (['0a [('0R -> ['0a '0R]) '1S]] -> [Bool '1S])
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+quote : (['a 'S] -> [('R -> ['a 'R]) 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose apply : ([('0S -> '0B) [('0B -> '0C) '0S]] -> '0C)
+compose quote : ([('0A -> '0B) [('0B -> '0C) '0S]] -> [('1R -> [('0A -> '0C) '1R]) '0S])
+compose compose : ([('0A -> '0B) [('0B -> '0C) [('0C -> '1C) '1S]]] -> [('0A -> '1C) '1S])
+compose dup : ([('0A -> '0B) [('0B -> '0C) '0S]] -> [('0A -> '0C) [('0A -> '0C) '0S]])
+compose pop : ([('0A -> '0B) [('0B -> '0C) '0S]] -> '0S)
+compose swap : ([('0A -> '0B) [('0B -> '0C) ['1b '1S]]] -> ['1b [('0A -> '0C) '1S]])
+compose dip : ([('0A -> '0B) [('0B -> '0C) ['1a '0A]]] -> ['1a '0C])
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can only unify constants with variables and other constants
+compose while : ([('0A -> '0B) [('0B -> [Bool '1R]) [('1R -> '0A) '0A]]] -> '0A)
+compose eq : ([('0A -> '0B) [('0B -> '0C) [('0A -> '0C) '1S]]] -> [Bool '1S])
+compose neq : ([('0A -> '0B) [('0B -> '0C) [('0A -> '0C) '1S]]] -> [Bool '1S])
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can only unify constants with variables and other constants
+dup : (['a 'S] -> ['a ['a 'S]]) apply : ([('S -> 'R) 'S] -> 'R) :> RangeError: Maximum call stack size exceeded
+dup quote : (['0a '0S] -> [('1R -> ['0a '1R]) ['0a '0S]])
+dup compose : ([['1A -> '1A] '0S] -> [('1A -> '1A) '0S])
+dup dup : (['0a '0S] -> ['0a ['0a ['0a '0S]]])
+dup pop : (['0a '0S] -> ['0a '0S])
+dup swap : (['0a '0S] -> ['0a ['0a '0S]])
+dup dip : ([('0S -> '1R) '0S] -> [('0S -> '1R) '1R])
+dup cond : ([Bool [Bool '1S]] -> [Bool '1S])
+dup while : ([[[Bool $recursive] -> [Bool $recursive]] [Bool $recursive]] -> [Bool $recursive])
+dup eq : (['0a '0S] -> [Bool '0S])
+dup neq : (['0a '0S] -> [Bool '0S])
+dup add : ([Num '0S] -> [Num '0S])
+dup neg : ([Num '0S] -> [Num [Num '0S]])
+dup sub : ([Num '0S] -> [Num '0S])
+dup mul : ([Num '0S] -> [Num '0S])
+dup div : ([Num '0S] -> [Num '0S])
+dup mod : ([Num '0S] -> [Num '0S])
+dup not : ([Bool '0S] -> [Bool [Bool '0S]])
+dup gt : ([Num '0S] -> [Bool '0S])
+dup gteq : ([Num '0S] -> [Bool '0S])
+dup lt : ([Num '0S] -> [Bool '0S])
+dup lteq : ([Num '0S] -> [Bool '0S])
+dup and : ([Bool '0S] -> [Bool '0S])
+dup or : ([Bool '0S] -> [Bool '0S])
+dup xor : ([Bool '0S] -> [Bool '0S])
+pop apply : (['0a [('1S -> '1R) '1S]] -> '1R)
+pop quote : (['0a ['1a '1S]] -> [('1R -> ['1a '1R]) '1S])
+pop compose : (['0a [('1A -> '1B) [('1B -> '1C) '1S]]] -> [('1A -> '1C) '1S])
+pop dup : (['0a ['1a '1S]] -> ['1a ['1a '1S]])
+pop pop : (['0a ['1a '1S]] -> '1S)
+pop swap : (['0a ['1a ['1b '1S]]] -> ['1b ['1a '1S]])
+pop dip : (['0a [('1S -> '1R) ['1a '1S]]] -> ['1a '1R])
+pop cond : (['0a [Bool ['1a ['1a '1S]]]] -> ['1a '1S])
+pop while : (['0a [('1S -> [Bool '1R]) [('1R -> '1S) '1S]]] -> '1S)
+pop eq : (['0a ['1a ['1a '1S]]] -> [Bool '1S])
+pop neq : (['0a ['1a ['1a '1S]]] -> [Bool '1S])
+pop add : (['0a [Num [Num '1S]]] -> [Num '1S])
+pop neg : (['0a [Num '1S]] -> [Num '1S])
+pop sub : (['0a [Num [Num '1S]]] -> [Num '1S])
+pop mul : (['0a [Num [Num '1S]]] -> [Num '1S])
+pop div : (['0a [Num [Num '1S]]] -> [Num '1S])
+pop mod : (['0a [Num [Num '1S]]] -> [Num '1S])
+pop not : (['0a [Bool '1S]] -> [Bool '1S])
+pop gt : (['0a [Num [Num '1S]]] -> [Bool '1S])
+pop gteq : (['0a [Num [Num '1S]]] -> [Bool '1S])
+pop lt : (['0a [Num [Num '1S]]] -> [Bool '1S])
+pop lteq : (['0a [Num [Num '1S]]] -> [Bool '1S])
+pop and : (['0a [Bool [Bool '1S]]] -> [Bool '1S])
+pop or : (['0a [Bool [Bool '1S]]] -> [Bool '1S])
+pop xor : (['0a [Bool [Bool '1S]]] -> [Bool '1S])
+swap apply : (['0a [(['0a '0S] -> '1R) '0S]] -> '1R)
+swap quote : (['0a ['0b '0S]] -> [('1R -> ['0b '1R]) ['0a '0S]])
+swap compose : ([('1B -> '1C) [('1A -> '1B) '0S]] -> [('1A -> '1C) '0S])
+swap dup : (['0a ['0b '0S]] -> ['0b ['0b ['0a '0S]]])
+swap pop : (['0a ['0b '0S]] -> ['0a '0S])
+swap swap : (['0a ['0b '0S]] -> ['0a ['0b '0S]])
+swap dip : (['0a [('0S -> '1R) '0S]] -> ['0a '1R])
+swap cond : (['0a [Bool ['0a '1S]]] -> ['0a '1S])
+swap while : ([('1R -> '0S) [('0S -> [Bool '1R]) '0S]] -> '0S)
+swap eq : (['0a ['0a '0S]] -> [Bool '0S])
+swap neq : (['0a ['0a '0S]] -> [Bool '0S])
+swap add : ([Num [Num '0S]] -> [Num '0S])
+swap neg : (['0a [Num '0S]] -> [Num ['0a '0S]])
+swap sub : ([Num [Num '0S]] -> [Num '0S])
+swap mul : ([Num [Num '0S]] -> [Num '0S])
+swap div : ([Num [Num '0S]] -> [Num '0S])
+swap mod : ([Num [Num '0S]] -> [Num '0S])
+swap not : (['0a [Bool '0S]] -> [Bool ['0a '0S]])
+swap gt : ([Num [Num '0S]] -> [Bool '0S])
+swap gteq : ([Num [Num '0S]] -> [Bool '0S])
+swap lt : ([Num [Num '0S]] -> [Bool '0S])
+swap lteq : ([Num [Num '0S]] -> [Bool '0S])
+swap and : ([Bool [Bool '0S]] -> [Bool '0S])
+swap or : ([Bool [Bool '0S]] -> [Bool '0S])
+swap xor : ([Bool [Bool '0S]] -> [Bool '0S])
+dip apply : ([('0S -> '0R) [('0R -> '1R) '0S]] -> '1R)
+dip quote : ([('0S -> '0R) ['0a '0S]] -> [('1R -> ['0a '1R]) '0R])
+dip compose : ([('0S -> [('1B -> '1C) '1S]) [('1A -> '1B) '0S]] -> [('1A -> '1C) '1S])
+dip dup : ([('0S -> '0R) ['0a '0S]] -> ['0a ['0a '0R]])
+dip pop : ([('0S -> '0R) ['0a '0S]] -> '0R)
+dip swap : ([('0S -> ['1b '1S]) ['0a '0S]] -> ['1b ['0a '1S]])
+dip dip : ([('0S -> ['1a '1S]) [('1S -> '1R) '0S]] -> ['1a '1R])
+dip cond : ([('0S -> ['1a ['1a '1S]]) [Bool '0S]] -> ['1a '1S])
+dip while : ([('0S -> [('1R -> '1S) '1S]) [('1S -> [Bool '1R]) '0S]] -> '1S)
+dip eq : ([('0S -> ['0a '1S]) ['0a '0S]] -> [Bool '1S])
+dip neq : ([('0S -> ['0a '1S]) ['0a '0S]] -> [Bool '1S])
+dip add : ([('0S -> [Num '1S]) [Num '0S]] -> [Num '1S])
+dip neg : ([('0S -> '0R) [Num '0S]] -> [Num '0R])
+dip sub : ([('0S -> [Num '1S]) [Num '0S]] -> [Num '1S])
+dip mul : ([('0S -> [Num '1S]) [Num '0S]] -> [Num '1S])
+dip div : ([('0S -> [Num '1S]) [Num '0S]] -> [Num '1S])
+dip mod : ([('0S -> [Num '1S]) [Num '0S]] -> [Num '1S])
+dip not : ([('0S -> '0R) [Bool '0S]] -> [Bool '0R])
+dip gt : ([('0S -> [Num '1S]) [Num '0S]] -> [Bool '1S])
+dip gteq : ([('0S -> [Num '1S]) [Num '0S]] -> [Bool '1S])
+dip lt : ([('0S -> [Num '1S]) [Num '0S]] -> [Bool '1S])
+dip lteq : ([('0S -> [Num '1S]) [Num '0S]] -> [Bool '1S])
+dip and : ([('0S -> [Bool '1S]) [Bool '0S]] -> [Bool '1S])
+dip or : ([('0S -> [Bool '1S]) [Bool '0S]] -> [Bool '1S])
+dip xor : ([('0S -> [Bool '1S]) [Bool '0S]] -> [Bool '1S])
+cond apply : ([Bool [('0S -> '1R) [('0S -> '1R) '0S]]] -> '1R)
+cond quote : ([Bool ['0a ['0a '0S]]] -> [('1R -> ['0a '1R]) '0S])
+cond compose : ([Bool [('1A -> '1B) [('1A -> '1B) [('1B -> '1C) '1S]]]] -> [('1A -> '1C) '1S])
+cond dup : ([Bool ['0a ['0a '0S]]] -> ['0a ['0a '0S]])
+cond pop : ([Bool ['0a ['0a '0S]]] -> '0S)
+cond swap : ([Bool ['0a ['0a ['1b '1S]]]] -> ['1b ['0a '1S]])
+cond dip : ([Bool [('1S -> '1R) [('1S -> '1R) ['1a '1S]]]] -> ['1a '1R])
+cond cond : ([Bool [Bool [Bool ['1a ['1a '1S]]]]] -> ['1a '1S])
+cond while : ([Bool [('1S -> [Bool '1R]) [('1S -> [Bool '1R]) [('1R -> '1S) '1S]]]] -> '1S)
+cond eq : ([Bool ['0a ['0a ['0a '1S]]]] -> [Bool '1S])
+cond neq : ([Bool ['0a ['0a ['0a '1S]]]] -> [Bool '1S])
+cond add : ([Bool [Num [Num [Num '1S]]]] -> [Num '1S])
+cond neg : ([Bool [Num [Num '0S]]] -> [Num '0S])
+cond sub : ([Bool [Num [Num [Num '1S]]]] -> [Num '1S])
+cond mul : ([Bool [Num [Num [Num '1S]]]] -> [Num '1S])
+cond div : ([Bool [Num [Num [Num '1S]]]] -> [Num '1S])
+cond mod : ([Bool [Num [Num [Num '1S]]]] -> [Num '1S])
+cond not : ([Bool [Bool [Bool '0S]]] -> [Bool '0S])
+cond gt : ([Bool [Num [Num [Num '1S]]]] -> [Bool '1S])
+cond gteq : ([Bool [Num [Num [Num '1S]]]] -> [Bool '1S])
+cond lt : ([Bool [Num [Num [Num '1S]]]] -> [Bool '1S])
+cond lteq : ([Bool [Num [Num [Num '1S]]]] -> [Bool '1S])
+cond and : ([Bool [Bool [Bool [Bool '1S]]]] -> [Bool '1S])
+cond or : ([Bool [Bool [Bool [Bool '1S]]]] -> [Bool '1S])
+cond xor : ([Bool [Bool [Bool [Bool '1S]]]] -> [Bool '1S])
+while apply : ([([('1S -> '1R) '1S] -> [Bool '0R]) [('0R -> [('1S -> '1R) '1S]) [('1S -> '1R) '1S]]] -> '1R)
+while quote : ([(['1a '1S] -> [Bool '0R]) [('0R -> ['1a '1S]) ['1a '1S]]] -> [('1R -> ['1a '1R]) '1S])
+while compose : ([([('1A -> '1B) [('1B -> '1C) '1S]] -> [Bool '0R]) [('0R -> [('1A -> '1B) [('1B -> '1C) '1S]]) [('1A -> '1B) [('1B -> '1C) '1S]]]] -> [('1A -> '1C) '1S])
+while dup : ([(['1a '1S] -> [Bool '0R]) [('0R -> ['1a '1S]) ['1a '1S]]] -> ['1a ['1a '1S]])
+while pop : ([(['1a '1S] -> [Bool '0R]) [('0R -> ['1a '1S]) ['1a '1S]]] -> '1S)
+while swap : ([(['1a ['1b '1S]] -> [Bool '0R]) [('0R -> ['1a ['1b '1S]]) ['1a ['1b '1S]]]] -> ['1b ['1a '1S]])
+while dip : ([([('1S -> '1R) ['1a '1S]] -> [Bool '0R]) [('0R -> [('1S -> '1R) ['1a '1S]]) [('1S -> '1R) ['1a '1S]]]] -> ['1a '1R])
+while cond : ([([Bool ['1a ['1a '1S]]] -> [Bool '0R]) [('0R -> [Bool ['1a ['1a '1S]]]) [Bool ['1a ['1a '1S]]]]] -> ['1a '1S])
+while while : ([([('1S -> [Bool '1R]) [('1R -> '1S) '1S]] -> [Bool '0R]) [('0R -> [('1S -> [Bool '1R]) [('1R -> '1S) '1S]]) [('1S -> [Bool '1R]) [('1R -> '1S) '1S]]]] -> '1S)
+while eq : ([(['1a ['1a '1S]] -> [Bool '0R]) [('0R -> ['1a ['1a '1S]]) ['1a ['1a '1S]]]] -> [Bool '1S])
+while neq : ([(['1a ['1a '1S]] -> [Bool '0R]) [('0R -> ['1a ['1a '1S]]) ['1a ['1a '1S]]]] -> [Bool '1S])
+while add : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Num '1S])
+while neg : ([([Num '1S] -> [Bool '0R]) [('0R -> [Num '1S]) [Num '1S]]] -> [Num '1S])
+while sub : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Num '1S])
+while mul : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Num '1S])
+while div : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Num '1S])
+while mod : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Num '1S])
+while not : ([([Bool '1S] -> [Bool '0R]) [('0R -> [Bool '1S]) [Bool '1S]]] -> [Bool '1S])
+while gt : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Bool '1S])
+while gteq : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Bool '1S])
+while lt : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Bool '1S])
+while lteq : ([([Num [Num '1S]] -> [Bool '0R]) [('0R -> [Num [Num '1S]]) [Num [Num '1S]]]] -> [Bool '1S])
+while and : ([([Bool [Bool '1S]] -> [Bool '0R]) [('0R -> [Bool [Bool '1S]]) [Bool [Bool '1S]]]] -> [Bool '1S])
+while or : ([([Bool [Bool '1S]] -> [Bool '0R]) [('0R -> [Bool [Bool '1S]]) [Bool [Bool '1S]]]] -> [Bool '1S])
+while xor : ([([Bool [Bool '1S]] -> [Bool '0R]) [('0R -> [Bool [Bool '1S]]) [Bool [Bool '1S]]]] -> [Bool '1S])
+eq : (['a ['a 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+eq quote : (['0a ['0a '0S]] -> [('1R -> [Bool '1R]) '0S])
+eq : (['a ['a 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+eq dup : (['0a ['0a '0S]] -> [Bool [Bool '0S]])
+eq pop : (['0a ['0a '0S]] -> '0S)
+eq swap : (['0a ['0a ['1b '1S]]] -> ['1b [Bool '1S]])
+eq : (['a ['a 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+eq cond : (['0a ['0a ['1a ['1a '1S]]]] -> ['1a '1S])
+eq : (['a ['a 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+eq eq : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+eq neq : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+eq : (['a ['a 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+eq not : (['0a ['0a '0S]] -> [Bool '0S])
+eq : (['a ['a 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+eq : (['a ['a 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+eq and : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+eq or : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+eq xor : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+neq : (['a ['a 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+neq quote : (['0a ['0a '0S]] -> [('1R -> [Bool '1R]) '0S])
+neq : (['a ['a 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+neq dup : (['0a ['0a '0S]] -> [Bool [Bool '0S]])
+neq pop : (['0a ['0a '0S]] -> '0S)
+neq swap : (['0a ['0a ['1b '1S]]] -> ['1b [Bool '1S]])
+neq : (['a ['a 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+neq cond : (['0a ['0a ['1a ['1a '1S]]]] -> ['1a '1S])
+neq : (['a ['a 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+neq eq : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+neq neq : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+neq : (['a ['a 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+neq not : (['0a ['0a '0S]] -> [Bool '0S])
+neq : (['a ['a 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+neq : (['a ['a 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+neq and : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+neq or : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+neq xor : (['0a ['0a [Bool '1S]]] -> [Bool '1S])
+add : ([Num [Num 'S]] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+add quote : ([Num [Num '0S]] -> [('1R -> [Num '1R]) '0S])
+add : ([Num [Num 'S]] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+add dup : ([Num [Num '0S]] -> [Num [Num '0S]])
+add pop : ([Num [Num '0S]] -> '0S)
+add swap : ([Num [Num ['1b '1S]]] -> ['1b [Num '1S]])
+add : ([Num [Num 'S]] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+add : ([Num [Num 'S]] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+add : ([Num [Num 'S]] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+add eq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add neq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add add : ([Num [Num [Num '1S]]] -> [Num '1S])
+add neg : ([Num [Num '0S]] -> [Num '0S])
+add sub : ([Num [Num [Num '1S]]] -> [Num '1S])
+add mul : ([Num [Num [Num '1S]]] -> [Num '1S])
+add div : ([Num [Num [Num '1S]]] -> [Num '1S])
+add mod : ([Num [Num [Num '1S]]] -> [Num '1S])
+add : ([Num [Num 'S]] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+add gt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add gteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add lt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add lteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+add : ([Num [Num 'S]] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+add : ([Num [Num 'S]] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+add : ([Num [Num 'S]] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+neg : ([Num 'S] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+neg quote : ([Num '0S] -> [('1R -> [Num '1R]) '0S])
+neg : ([Num 'S] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+neg dup : ([Num '0S] -> [Num [Num '0S]])
+neg pop : ([Num '0S] -> '0S)
+neg swap : ([Num ['1b '1S]] -> ['1b [Num '1S]])
+neg : ([Num 'S] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+neg : ([Num 'S] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+neg : ([Num 'S] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+neg eq : ([Num [Num '1S]] -> [Bool '1S])
+neg neq : ([Num [Num '1S]] -> [Bool '1S])
+neg add : ([Num [Num '1S]] -> [Num '1S])
+neg neg : ([Num '0S] -> [Num '0S])
+neg sub : ([Num [Num '1S]] -> [Num '1S])
+neg mul : ([Num [Num '1S]] -> [Num '1S])
+neg div : ([Num [Num '1S]] -> [Num '1S])
+neg mod : ([Num [Num '1S]] -> [Num '1S])
+neg : ([Num 'S] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+neg gt : ([Num [Num '1S]] -> [Bool '1S])
+neg gteq : ([Num [Num '1S]] -> [Bool '1S])
+neg lt : ([Num [Num '1S]] -> [Bool '1S])
+neg lteq : ([Num [Num '1S]] -> [Bool '1S])
+neg : ([Num 'S] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+neg : ([Num 'S] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+neg : ([Num 'S] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+sub : ([Num [Num 'S]] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+sub quote : ([Num [Num '0S]] -> [('1R -> [Num '1R]) '0S])
+sub : ([Num [Num 'S]] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+sub dup : ([Num [Num '0S]] -> [Num [Num '0S]])
+sub pop : ([Num [Num '0S]] -> '0S)
+sub swap : ([Num [Num ['1b '1S]]] -> ['1b [Num '1S]])
+sub : ([Num [Num 'S]] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+sub : ([Num [Num 'S]] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+sub : ([Num [Num 'S]] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+sub eq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub neq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub add : ([Num [Num [Num '1S]]] -> [Num '1S])
+sub neg : ([Num [Num '0S]] -> [Num '0S])
+sub sub : ([Num [Num [Num '1S]]] -> [Num '1S])
+sub mul : ([Num [Num [Num '1S]]] -> [Num '1S])
+sub div : ([Num [Num [Num '1S]]] -> [Num '1S])
+sub mod : ([Num [Num [Num '1S]]] -> [Num '1S])
+sub : ([Num [Num 'S]] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+sub gt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub gteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub lt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub lteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+sub : ([Num [Num 'S]] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+sub : ([Num [Num 'S]] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+sub : ([Num [Num 'S]] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mul : ([Num [Num 'S]] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+mul quote : ([Num [Num '0S]] -> [('1R -> [Num '1R]) '0S])
+mul : ([Num [Num 'S]] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+mul dup : ([Num [Num '0S]] -> [Num [Num '0S]])
+mul pop : ([Num [Num '0S]] -> '0S)
+mul swap : ([Num [Num ['1b '1S]]] -> ['1b [Num '1S]])
+mul : ([Num [Num 'S]] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+mul : ([Num [Num 'S]] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+mul : ([Num [Num 'S]] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+mul eq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul neq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul add : ([Num [Num [Num '1S]]] -> [Num '1S])
+mul neg : ([Num [Num '0S]] -> [Num '0S])
+mul sub : ([Num [Num [Num '1S]]] -> [Num '1S])
+mul mul : ([Num [Num [Num '1S]]] -> [Num '1S])
+mul div : ([Num [Num [Num '1S]]] -> [Num '1S])
+mul mod : ([Num [Num [Num '1S]]] -> [Num '1S])
+mul : ([Num [Num 'S]] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mul gt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul gteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul lt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul lteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mul : ([Num [Num 'S]] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mul : ([Num [Num 'S]] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mul : ([Num [Num 'S]] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+div : ([Num [Num 'S]] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+div quote : ([Num [Num '0S]] -> [('1R -> [Num '1R]) '0S])
+div : ([Num [Num 'S]] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+div dup : ([Num [Num '0S]] -> [Num [Num '0S]])
+div pop : ([Num [Num '0S]] -> '0S)
+div swap : ([Num [Num ['1b '1S]]] -> ['1b [Num '1S]])
+div : ([Num [Num 'S]] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+div : ([Num [Num 'S]] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+div : ([Num [Num 'S]] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+div eq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div neq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div add : ([Num [Num [Num '1S]]] -> [Num '1S])
+div neg : ([Num [Num '0S]] -> [Num '0S])
+div sub : ([Num [Num [Num '1S]]] -> [Num '1S])
+div mul : ([Num [Num [Num '1S]]] -> [Num '1S])
+div div : ([Num [Num [Num '1S]]] -> [Num '1S])
+div mod : ([Num [Num [Num '1S]]] -> [Num '1S])
+div : ([Num [Num 'S]] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+div gt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div gteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div lt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div lteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+div : ([Num [Num 'S]] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+div : ([Num [Num 'S]] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+div : ([Num [Num 'S]] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mod : ([Num [Num 'S]] -> [Num 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+mod quote : ([Num [Num '0S]] -> [('1R -> [Num '1R]) '0S])
+mod : ([Num [Num 'S]] -> [Num 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+mod dup : ([Num [Num '0S]] -> [Num [Num '0S]])
+mod pop : ([Num [Num '0S]] -> '0S)
+mod swap : ([Num [Num ['1b '1S]]] -> ['1b [Num '1S]])
+mod : ([Num [Num 'S]] -> [Num 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+mod : ([Num [Num 'S]] -> [Num 'S]) cond : ([Bool ['a ['a 'S]]] -> ['a 'S]) :> Error: Can't unify type constants Num and Bool
+mod : ([Num [Num 'S]] -> [Num 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+mod eq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod neq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod add : ([Num [Num [Num '1S]]] -> [Num '1S])
+mod neg : ([Num [Num '0S]] -> [Num '0S])
+mod sub : ([Num [Num [Num '1S]]] -> [Num '1S])
+mod mul : ([Num [Num [Num '1S]]] -> [Num '1S])
+mod div : ([Num [Num [Num '1S]]] -> [Num '1S])
+mod mod : ([Num [Num [Num '1S]]] -> [Num '1S])
+mod : ([Num [Num 'S]] -> [Num 'S]) not : ([Bool 'S] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mod gt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod gteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod lt : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod lteq : ([Num [Num [Num '1S]]] -> [Bool '1S])
+mod : ([Num [Num 'S]] -> [Num 'S]) and : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mod : ([Num [Num 'S]] -> [Num 'S]) or : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+mod : ([Num [Num 'S]] -> [Num 'S]) xor : ([Bool [Bool 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Num and Bool
+not : ([Bool 'S] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+not quote : ([Bool '0S] -> [('1R -> [Bool '1R]) '0S])
+not : ([Bool 'S] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+not dup : ([Bool '0S] -> [Bool [Bool '0S]])
+not pop : ([Bool '0S] -> '0S)
+not swap : ([Bool ['1b '1S]] -> ['1b [Bool '1S]])
+not : ([Bool 'S] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+not cond : ([Bool ['1a ['1a '1S]]] -> ['1a '1S])
+not : ([Bool 'S] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+not eq : ([Bool [Bool '1S]] -> [Bool '1S])
+not neq : ([Bool [Bool '1S]] -> [Bool '1S])
+not : ([Bool 'S] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+not not : ([Bool '0S] -> [Bool '0S])
+not : ([Bool 'S] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+not : ([Bool 'S] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+not and : ([Bool [Bool '1S]] -> [Bool '1S])
+not or : ([Bool [Bool '1S]] -> [Bool '1S])
+not xor : ([Bool [Bool '1S]] -> [Bool '1S])
+gt : ([Num [Num 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+gt quote : ([Num [Num '0S]] -> [('1R -> [Bool '1R]) '0S])
+gt : ([Num [Num 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+gt dup : ([Num [Num '0S]] -> [Bool [Bool '0S]])
+gt pop : ([Num [Num '0S]] -> '0S)
+gt swap : ([Num [Num ['1b '1S]]] -> ['1b [Bool '1S]])
+gt : ([Num [Num 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+gt cond : ([Num [Num ['1a ['1a '1S]]]] -> ['1a '1S])
+gt : ([Num [Num 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+gt eq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gt neq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gt : ([Num [Num 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gt not : ([Num [Num '0S]] -> [Bool '0S])
+gt : ([Num [Num 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gt : ([Num [Num 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gt and : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gt or : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gt xor : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+gteq quote : ([Num [Num '0S]] -> [('1R -> [Bool '1R]) '0S])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+gteq dup : ([Num [Num '0S]] -> [Bool [Bool '0S]])
+gteq pop : ([Num [Num '0S]] -> '0S)
+gteq swap : ([Num [Num ['1b '1S]]] -> ['1b [Bool '1S]])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+gteq cond : ([Num [Num ['1a ['1a '1S]]]] -> ['1a '1S])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+gteq eq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gteq neq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+gteq not : ([Num [Num '0S]] -> [Bool '0S])
+gteq : ([Num [Num 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gteq : ([Num [Num 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+gteq and : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gteq or : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+gteq xor : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lt : ([Num [Num 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+lt quote : ([Num [Num '0S]] -> [('1R -> [Bool '1R]) '0S])
+lt : ([Num [Num 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+lt dup : ([Num [Num '0S]] -> [Bool [Bool '0S]])
+lt pop : ([Num [Num '0S]] -> '0S)
+lt swap : ([Num [Num ['1b '1S]]] -> ['1b [Bool '1S]])
+lt : ([Num [Num 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+lt cond : ([Num [Num ['1a ['1a '1S]]]] -> ['1a '1S])
+lt : ([Num [Num 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+lt eq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lt neq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lt : ([Num [Num 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lt not : ([Num [Num '0S]] -> [Bool '0S])
+lt : ([Num [Num 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lt : ([Num [Num 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lt and : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lt or : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lt xor : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+lteq quote : ([Num [Num '0S]] -> [('1R -> [Bool '1R]) '0S])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+lteq dup : ([Num [Num '0S]] -> [Bool [Bool '0S]])
+lteq pop : ([Num [Num '0S]] -> '0S)
+lteq swap : ([Num [Num ['1b '1S]]] -> ['1b [Bool '1S]])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+lteq cond : ([Num [Num ['1a ['1a '1S]]]] -> ['1a '1S])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+lteq eq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lteq neq : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+lteq not : ([Num [Num '0S]] -> [Bool '0S])
+lteq : ([Num [Num 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lteq : ([Num [Num 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+lteq and : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lteq or : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+lteq xor : ([Num [Num [Bool '1S]]] -> [Bool '1S])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+and quote : ([Bool [Bool '0S]] -> [('1R -> [Bool '1R]) '0S])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+and dup : ([Bool [Bool '0S]] -> [Bool [Bool '0S]])
+and pop : ([Bool [Bool '0S]] -> '0S)
+and swap : ([Bool [Bool ['1b '1S]]] -> ['1b [Bool '1S]])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+and cond : ([Bool [Bool ['1a ['1a '1S]]]] -> ['1a '1S])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+and eq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+and neq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+and not : ([Bool [Bool '0S]] -> [Bool '0S])
+and : ([Bool [Bool 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+and : ([Bool [Bool 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+and and : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+and or : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+and xor : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+or quote : ([Bool [Bool '0S]] -> [('1R -> [Bool '1R]) '0S])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+or dup : ([Bool [Bool '0S]] -> [Bool [Bool '0S]])
+or pop : ([Bool [Bool '0S]] -> '0S)
+or swap : ([Bool [Bool ['1b '1S]]] -> ['1b [Bool '1S]])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+or cond : ([Bool [Bool ['1a ['1a '1S]]]] -> ['1a '1S])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+or eq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+or neq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+or not : ([Bool [Bool '0S]] -> [Bool '0S])
+or : ([Bool [Bool 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+or : ([Bool [Bool 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+or and : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+or or : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+or xor : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) apply : ([('S -> 'R) 'S] -> 'R) :> Error: Can only unify constants with variables and other constants
+xor quote : ([Bool [Bool '0S]] -> [('1R -> [Bool '1R]) '0S])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) compose : ([('A -> 'B) [('B -> 'C) 'S]] -> [('A -> 'C) 'S]) :> Error: Can only unify constants with variables and other constants
+xor dup : ([Bool [Bool '0S]] -> [Bool [Bool '0S]])
+xor pop : ([Bool [Bool '0S]] -> '0S)
+xor swap : ([Bool [Bool ['1b '1S]]] -> ['1b [Bool '1S]])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) dip : ([('S -> 'R) ['a 'S]] -> ['a 'R]) :> Error: Can only unify constants with variables and other constants
+xor cond : ([Bool [Bool ['1a ['1a '1S]]]] -> ['1a '1S])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) while : ([('S -> [Bool 'R]) [('R -> 'S) 'S]] -> 'S) :> Error: Can only unify constants with variables and other constants
+xor eq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+xor neq : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) add : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) neg : ([Num 'S] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) sub : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) mul : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) div : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) mod : ([Num [Num 'S]] -> [Num 'S]) :> Error: Can't unify type constants Bool and Num
+xor not : ([Bool [Bool '0S]] -> [Bool '0S])
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) gt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) gteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) lt : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+xor : ([Bool [Bool 'S]] -> [Bool 'S]) lteq : ([Num [Num 'S]] -> [Bool 'S]) :> Error: Can't unify type constants Bool and Num
+xor and : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+xor or : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
+xor xor : ([Bool [Bool [Bool '1S]]] -> [Bool '1S])
