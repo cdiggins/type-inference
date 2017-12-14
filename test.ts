@@ -1,4 +1,52 @@
-import { TypeInference as ti } from "./type_inference";
+import { TypeCore } from "./type_core";
+import { TypeParser as tp } from "./type_parser";
+import * as ti from "./type_inference";
+
+function testParse(input:string, fail:boolean=false)
+{        
+    try
+    {
+        var t = tp.stringToType(input);
+        console.log("input = " + input + " result= " + t);
+    }
+    catch (e)
+    {
+        console.log("input = " + input + " error= " + e);
+    }
+}
+
+testParse("abc");
+testParse("'abc");
+testParse("()");
+testParse("( )");
+testParse("(a)");
+testParse("('a)");
+testParse("(array int)");
+testParse("(array 't)");
+testParse("(function int 't ())");
+testParse("(function int float)");
+testParse("(()())");
+testParse("[function ['a 'b] ['c 'd]]");
+
+function TestConstraints(a:string, b:string)
+{
+    var engine = new ti.Inferer();
+    var expr1 = ti.stringToType(a);
+    var expr2 = ti.stringToType(b);
+    engine.unifyTypes(expr1, expr2);
+    engine.logState();
+}
+
+TestConstraints("'a", "int");
+TestConstraints("int", "'a");
+TestConstraints("int", "int");
+TestConstraints("['a]", "[int]");
+TestConstraints("['a int 'b]", "[int int float string]");
+TestConstraints("'a", "['a int]");
+TestConstraints("('a -> 'b)", "(int int -> float)");
+
+declare var process : any;
+process.exit();
 
 {
     console.log("Constraint Tests");

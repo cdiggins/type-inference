@@ -230,7 +230,7 @@ var CatLanguage;
         CatStack.prototype.pop = function () {
             return this.stack.pop();
         };
-        // Removes the top value from the stack, and returns it as the specified type.
+        // Removes the top valued from the stack, and returns it as the specified type.
         CatStack.prototype.popType = function () {
             return this.pop();
         };

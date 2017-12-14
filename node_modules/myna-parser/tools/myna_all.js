@@ -12,4 +12,3 @@ require('../grammars/grammar_mustache')(myna);
 require('../grammars/grammar_glsl')(myna);
 
 module.exports = myna;
-

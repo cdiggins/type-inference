@@ -1,11 +1,29 @@
-# A Type Inference Algorithm for Common People
+# Type Inference Algorithm 
 
-This is a simple and easy to use practical type inference algorithm written in TypeScript intended for use in various programming 
-language implementations or analysis tools.
+This is a simple and easy to use type inference algorithm written in TypeScript that supports polymorphic types and row-polymorphism. 
+
+The algorithm is more powerful than Damas-Hindley-Milner type inference (aka Algorithm W) as it can infer higher-order types.
+
+>>> I have merely tested and validated the code, I have not proven that it works. 
+
+## Higher Rank Polymorphism
+
+This algorithm is capable of inferring polymorphic types 
+
+For example:
+
+('A -> 'B) = forall('A).('A -> 'A) - the id function type
+('A -> 'B) = forall('A, 'B).('A -> 'B) - the most general type convering all functions.
+(('A -> 'B) 'A -> 'B) = forall('A, 'B).(('A -> 'B) 'A -> 'B) - the type of the function application expresison.
+(('a 'B -> 'C) 'a 'D -> ('B -> 'C) 'D) = forall('a, 'D, 'B, 'C).(('a 'B -> 'C) 'a 'D -> ('B -> 'C) 'D)
+
+## Row Polymorphism 
+
+Row polymorphism occurs naturally by encoding type lists as a nested type pairs, with a type variable in the last position, and by encoding function types as mapping from type lists to type lists. 
+
 
 Given a function signature with no type annotations, and a series of type constraints (expressed in terms of statements or 
 expressions in the target language), it will work out the most specific type signature possible, or generate a list of type errors. 
-This algorithm can be used with many different programming languages. 
 
 The types handled by this system are either constants (e.g. int, string, function), variables (e.g. T0, R), or 
 lists (e.g. `[function, T, [T, T]]`).
@@ -44,3 +62,32 @@ References:
 * https://dl.acm.org/citation.cfm?id=581690.581699 - 
 Techniques for embedding postfix languages in Haskell 
 
+## Algorithm W (Damas-Hindley-Milner)
+
+Based on Luca Cardelli's Implementation 
+
+* https://brianmckenna.org/files/js-type-inference/docs/typeinference.html - JavaScript by Brian McKenna
+* http://smallshire.org.uk/sufficientlysmall/2010/04/11/a-hindley-milner-type-inference-implementation-in-python/ - Python by Robert Smallshire
+* http://dysphoria.net/2009/06/28/hindley-milner-type-inference-in-scala/ - Scala by Andrew 
+  * http://dysphoria.net/code/hindley-milner/HindleyMilner.scala 
+* http://web.archive.org/web/20050911123640/http:/www.cs.berkeley.edu/~nikitab/courses/cs263/hm.html - Nikita Borisov
+* http://lucacardelli.name/Papers/BasicTypechecking.pdf - Luca Cardelli 
+
+Other implementations
+
+* http://catamorph.de/documents/AlgorithmW.pdf - Martin Grabmuller 2006
+* http://yinyanghu.github.io/posts/2014-03-13-algorithm-w.html 
+* https://github.com/maeln/LambdaHindleyMilner 
+
+Papers
+
+* https://homes.cs.washington.edu/~mernst/teaching/6.883/readings/p207-damas.pdf - Principal Type-Schemes for Functional Languages
+
+## On Higher Rank Polymorphism 
+
+* https://stackoverflow.com/a/10470321/184528 - StackOverflow answer to "what is full type inference" by Andreas Rossberg, 2012
+* https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#arbitrary-rank-polymorphism 
+
+## On Polymorphic Type Inference
+
+* http://cs.au.dk/~mis/typeinf.pdf - Polymorphic Type Inference by Michael I. Schwartzback, March 1995
