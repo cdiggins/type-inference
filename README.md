@@ -1,10 +1,34 @@
 # Type Inference Algorithm 
 
-This is a simple and easy to use type inference algorithm written in TypeScript that supports polymorphic types and row-polymorphism. 
+This is a simple and easy to use type inference algorithm written in TypeScript that supports polymorphic types. 
 
-The algorithm is more powerful than Damas-Hindley-Milner type inference (aka Algorithm W) as it can infer higher-order types.
+The algorithm is different than Damas-Hindley-Milner type inference (aka Algorithm W) as it can infer higher-order types.
 
->>> I have merely tested and validated the code, I have not proven that it works. 
+>>> I have merely tested and validated that the code works, I have not proven that it is correct. 
+
+## Algorithm
+
+In short the algorithm will be able to work out the polymorphic type of any function given a set of polymorphic primitive functions. 
+
+1. Supported types are either type arrays, type constants, or type variables
+1. If a new type expression is introduced: uniquely rename all of the type variables 
+1. Assigning a value to a variable causes the original type and the new type to be constrained 
+1. New variables are given a new type variable
+1. When calling a function unify the types of the argument expressions with the 
+
+## Extending Support for other Kinds of Types
+
+A number of different kinds of types can be encoded as a type array. The type inference algorithm continues to work equally well. 
+
+1. A type pair is a type array of two elements 
+1. A type list is encoded as a type array of two elements:
+  1. the head of the list (any type)
+  1. the tail of the list (a type pair or a type variable)
+1. A type array is encoded as a type array of two elements: 
+  1. an "array" type constant
+  1. the array element type 
+1. Function types are encoded as a type array of three elements: 
+  1. a "function" type consisiting 
 
 ## Higher Rank Polymorphism
 
@@ -20,7 +44,6 @@ For example:
 ## Row Polymorphism 
 
 Row polymorphism occurs naturally by encoding type lists as a nested type pairs, with a type variable in the last position, and by encoding function types as mapping from type lists to type lists. 
-
 
 Given a function signature with no type annotations, and a series of type constraints (expressed in terms of statements or 
 expressions in the target language), it will work out the most specific type signature possible, or generate a list of type errors. 
@@ -91,3 +114,13 @@ Papers
 ## On Polymorphic Type Inference
 
 * http://cs.au.dk/~mis/typeinf.pdf - Polymorphic Type Inference by Michael I. Schwartzback, March 1995
+* http://delivery.acm.org/10.1145/2910000/2908119/p27-noonan.pdf?ip=135.19.58.177&id=2908119&acc=CHORUS&key=4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E6D218144511F3437&CFID=840515719&CFTOKEN=36842691&__acm__=1513267013_22d16f287c9ef9a0075691b0af07e0ab - Polymorphic Type Inference for Machine Code
+
+# More references 
+
+J. Palsberg, M. Wand, and P. O’Keefe. Type inference with
+non-structural subtyping. Formal Aspects of Computing, 9(1):
+49–67, 1997.
+
+# Todo:
+https://stackoverflow.com/questions/22060592/growth-of-type-definition-in-sml-using-hindley-milner-type-inference/22061847#22061847

@@ -1,17 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var type_inference_1 = require("./type_inference");
 var type_parser_1 = require("./type_parser");
-function typeList(types) {
-}
-function arrayType(type) {
-    return;
-}
-function functionType(input, output) {
-    return typeList(['function', input, output]);
-}
-function composeFunctions(inA, outA, inB, outB) {
-}
+var ti = require("./type_inference");
 function testParse(input, fail) {
     if (fail === void 0) { fail = false; }
     try {
@@ -33,31 +23,30 @@ testParse("(array 't)");
 testParse("(function int 't ())");
 testParse("(function int float)");
 testParse("(()())");
-testParse("[function ['a 'b] ['c 'd]]");
-function TestConstraints(a, b) {
-    var engine = new type_inference_1.TypeInferenceCore.Engine();
-    var expr1 = stringToType(a);
-    var expr2 = stringToType(b);
-    engine.addTypeConstraint(expr1, expr2);
-    engine.resolve();
+testParse("(function (int (int 'a)) (float (float 'a)))");
+function testUnification(a, b) {
+    var engine = new ti.Inferer();
+    var expr1 = ti.stringToType(a);
+    var expr2 = ti.stringToType(b);
+    engine.unifyTypes(expr1, expr2);
     engine.logState();
 }
-TestConstraints("'a", "int");
-TestConstraints("int", "'a");
-TestConstraints("int", "int");
-TestConstraints("['a]", "[int]");
-TestConstraints("['a int 'b]", "[int int float string]");
-TestConstraints("'a", "['a int]");
-TestConstraints("('a -> 'b)", "(int int -> float)");
+testUnification("'a", "int");
+testUnification("int", "'a");
+testUnification("int", "int");
+testUnification("('a)", "(int)");
+testUnification("('a (int 'b))", "(int (int (float string)))");
+testUnification("'a", "['a int]");
+testUnification("('a -> 'b)", "(int int -> float)");
 process.exit();
 {
     console.log("Constraint Tests");
     {
         console.log("");
         console.log("## Test A");
-        var te = new type_inference_1.TypeInferenceCore.Engine();
-        var t0 = te.addVarConstraint('x', new type_inference_1.TypeInferenceCore.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new type_inference_1.TypeInferenceCore.TypeConstant('int'));
+        var i = new ti.Inferer();
+        var f = ti.functionType(["'x"], ["['x 'x 'x]"]);
+        var inputs = ti.functionInput(f);
         te.addTypeConstraint(t0, t1);
         te.resolve();
         te.logState();
@@ -65,10 +54,10 @@ process.exit();
     {
         console.log("");
         console.log("## Test B");
-        var te = new type_inference_1.TypeInferenceCore.Engine();
-        var t0 = te.addVarConstraint('x', new type_inference_1.TypeInferenceCore.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new type_inference_1.TypeInferenceCore.TypeVariable('U'));
-        var t2 = te.addVarConstraint('z', new type_inference_1.TypeInferenceCore.TypeConstant('int'));
+        var te = new ti.Engine();
+        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
+        var t1 = te.addVarConstraint('y', new ti.TypeVariable('U'));
+        var t2 = te.addVarConstraint('z', new ti.TypeConstant('int'));
         te.addTypeConstraint(t0, t1);
         te.addTypeConstraint(t1, t2);
         te.resolve();
@@ -77,11 +66,11 @@ process.exit();
     {
         console.log("");
         console.log("## Test C");
-        var te = new type_inference_1.TypeInferenceCore.Engine();
-        var t0 = te.addVarConstraint('x', new type_inference_1.TypeInferenceCore.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeConstant('int'), new type_inference_1.TypeInferenceCore.TypeVariable('U')]));
-        var t2 = te.addVarConstraint('z', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeVariable('V'), new type_inference_1.TypeInferenceCore.TypeConstant('float')]));
-        var t3 = te.addVarConstraint('r', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeVariable('U'), new type_inference_1.TypeInferenceCore.TypeVariable('V')]));
+        var te = new ti.Engine();
+        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
+        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeConstant('int'), new ti.TypeVariable('U')]));
+        var t2 = te.addVarConstraint('z', new ti.TypeArray([new ti.TypeVariable('V'), new ti.TypeConstant('float')]));
+        var t3 = te.addVarConstraint('r', new ti.TypeArray([new ti.TypeVariable('U'), new ti.TypeVariable('V')]));
         te.addTypeConstraint(t0, t1);
         te.addTypeConstraint(t0, t2);
         te.addReturnStatement(t3, null);
@@ -91,9 +80,9 @@ process.exit();
     {
         console.log("");
         console.log("## Test Recursion");
-        var te = new type_inference_1.TypeInferenceCore.Engine();
-        var t0 = te.addVarConstraint('x', new type_inference_1.TypeInferenceCore.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeVariable('T'), new type_inference_1.TypeInferenceCore.TypeConstant('float')]));
+        var te = new ti.Engine();
+        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
+        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeVariable('T'), new ti.TypeConstant('float')]));
         te.addTypeConstraint(t0, t1);
         te.resolve();
         te.logState();
@@ -101,9 +90,9 @@ process.exit();
     {
         console.log("");
         console.log("## Test Row Variables");
-        var te = new type_inference_1.TypeInferenceCore.Engine();
-        var t0 = te.addVarConstraint('x', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeVariable('T'), new type_inference_1.TypeInferenceCore.TypeVariable('U')]));
-        var t1 = te.addVarConstraint('y', new type_inference_1.TypeInferenceCore.TypeList([new type_inference_1.TypeInferenceCore.TypeConstant('int'), new type_inference_1.TypeInferenceCore.TypeConstant('float'), new type_inference_1.TypeInferenceCore.TypeConstant('float')]));
+        var te = new ti.Engine();
+        var t0 = te.addVarConstraint('x', new ti.TypeArray([new ti.TypeVariable('T'), new ti.TypeVariable('U')]));
+        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeConstant('int'), new ti.TypeConstant('float'), new ti.TypeConstant('float')]));
         te.addTypeConstraint(t0, t1);
         te.resolve();
         te.logState();

@@ -1,7 +1,11 @@
 "use strict";
+// A Type Inference Algorithm 
+// A novel type inference algorithm (not Algorithm W) with support for higher rank polymorphism.
+// Copyright 2017 by Christopher Diggins 
+// Licensed under the MIT License
 Object.defineProperty(exports, "__esModule", { value: true });
 var myna_1 = require("./node_modules/myna-parser/myna");
-var type_inference_core_1 = require("./type_inference_core");
+var ti = require("./type_inference");
 var TypeParser;
 (function (TypeParser) {
     function registerGrammars() {
@@ -27,11 +31,11 @@ var TypeParser;
             return null;
         switch (ast.name) {
             case "typeVar":
-                return new type_inference_core_1.TypeInferenceCore.TypeVariable(ast.allText.substr(1));
+                return new ti.TypeVariable(ast.allText.substr(1));
             case "typeConstant":
-                return new type_inference_core_1.TypeInferenceCore.TypeConstant(ast.allText);
+                return new ti.TypeConstant(ast.allText);
             case "typeList":
-                return new type_inference_core_1.TypeInferenceCore.TypeList(ast.children.map(astToType));
+                return new ti.TypeArray(ast.children.map(astToType));
             case "typeExpr":
                 if (ast.children.length != 1)
                     throw new Error("Expected only one child of node, not " + ast.children.length);

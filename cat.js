@@ -1,6 +1,6 @@
 "use strict";
 // The Cat Programming language v1.0
-// A type-inferred pure functional stack language heavily inspired by the Joy Programming Language
+// A type-inferred pure functional stack language inspired by the Joy Programming Language
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
 var __extends = (this && this.__extends) || (function () {
@@ -17,7 +17,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Myna is a parsing library: https://github.com/cdiggins/myna-parser 
 var myna_1 = require("./node_modules/myna-parser/myna");
 // A type-inference library: https://github.com/cdiggins/type-inference
-var type_inference_1 = require("./type_inference");
+var ti = require("./type_inference");
 var CatLanguage;
 (function (CatLanguage) {
     // Defines a Myna grammar for parsing Cat programs and types
@@ -52,14 +52,14 @@ var CatLanguage;
     // Helper Functions
     // Creates a flattened representation of type pairs appropriate for usage with Cat
     function flattenTypePairs(t) {
-        return t instanceof type_inference_1.TypeInference.TypePair
+        return t instanceof ti.TypePair
             ? t.typeA + " " + flattenTypePairs(t.typeB)
             : typeToString(t);
     }
     CatLanguage.flattenTypePairs = flattenTypePairs;
     // Returns a string representation of a type designed for Cat
     function typeToString(t) {
-        return t instanceof type_inference_1.TypeInference.TypeFunction
+        return t instanceof ti.TypeFunction
             ? "(" + flattenTypePairs(t.inputs) + " -> " + flattenTypePairs(t.outputs) + ")"
             : t.toString();
     }
@@ -73,7 +73,7 @@ var CatLanguage;
     // Converts a string into a type-list expression
     function stringToTypeFunction(s) {
         var t = stringToType(s);
-        if (t instanceof type_inference_1.TypeInference.TypeFunction)
+        if (t instanceof ti.TypeFunction)
             return t;
         throw new Error("Not a type function: " + s);
     }
@@ -88,7 +88,7 @@ var CatLanguage;
             throw new Error("Expected at least one element");
         if (nodes.length == 1)
             return astToType(nodes[0]);
-        return new type_inference_1.TypeInference.TypePair(astToType(nodes[0]), astNodesToType(nodes.slice(1)));
+        return new ti.TypePair(astToType(nodes[0]), astNodesToType(nodes.slice(1)));
     }
     CatLanguage.astNodesToType = astNodesToType;
     // Converts an AST generated from a parse int o type expression
@@ -97,16 +97,16 @@ var CatLanguage;
             throw new Error("Missing AST node");
         switch (ast.name) {
             case "typeVar":
-                return new type_inference_1.TypeInference.TypeVariable(ast.allText.substr(1));
+                return new ti.TypeVariable(ast.allText.substr(1));
             case "typeConstant":
-                return new type_inference_1.TypeInference.TypeConstant(ast.allText);
+                return new ti.TypeConstant(ast.allText);
             case "typeFunc":
-                return new type_inference_1.TypeInference.TypeFunction(astToType(ast.children[0]), astToType(ast.children[1]));
+                return new ti.TypeFunction(astToType(ast.children[0]), astToType(ast.children[1]));
             case "funcInput":
             case "funcOutput":
                 return astNodesToType(ast.children);
             case "typeList":
-                return new type_inference_1.TypeInference.TypeList(ast.children.map(astToType));
+                return new ti.TypeList(ast.children.map(astToType));
             case "typeExpr":
                 return astToType(ast.children[0]);
             default:
@@ -117,11 +117,11 @@ var CatLanguage;
     // Returns the type of data
     function dataType(data) {
         if (typeof (data) == 'number')
-            return new type_inference_1.TypeInference.TypeConstant('Num');
+            return new ti.TypeConstant('Num');
         if (typeof (data) == 'boolean')
-            return new type_inference_1.TypeInference.TypeConstant('Bool');
+            return new ti.TypeConstant('Bool');
         if (typeof (data) == 'string')
-            return new type_inference_1.TypeInference.TypeConstant('Str');
+            return new ti.TypeConstant('Str');
         if (data instanceof CatInstruction)
             return data.type;
         throw new Error("Could not figure out the type of the data: " + data);
@@ -129,10 +129,10 @@ var CatLanguage;
     CatLanguage.dataType = dataType;
     // Creates a Cat function type: adding the implicit row variable 
     function createCatFunctionType(inputs, outputs) {
-        var row = new type_inference_1.TypeInference.TypeVariable('_');
-        var input = type_inference_1.TypeInference.arrayToTypePair(inputs, row);
-        var output = type_inference_1.TypeInference.arrayToTypePair(outputs, row);
-        return new type_inference_1.TypeInference.TypeFunction(input, output);
+        var row = new ti.TypeVariable('_');
+        var input = ti.arrayToTypePair(inputs, row);
+        var output = ti.arrayToTypePair(outputs, row);
+        return new ti.TypeFunction(input, output);
     }
     CatLanguage.createCatFunctionType = createCatFunctionType;
     // Given the type of the current stack, and a function type, returns the type of the resulting stack.
@@ -156,7 +156,7 @@ var CatLanguage;
             return idType();
         var r = q[0].type;
         for (var i = 1; i < q.length; ++i)
-            r = type_inference_1.TypeInference.getComposedType(r, q[i].type);
+            r = ti.getComposedType(r, q[i].type);
         return r;
     }
     CatLanguage.quotationType = quotationType;
@@ -314,13 +314,29 @@ var CatLanguage;
             var primOps = {
                 apply: "(('S -> 'R) 'S -> 'R)",
                 quote: "('a 'S -> ('R -> 'a 'R) 'S)",
-                compose: "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)",
+                compose: "(('B -> 'C) ('A -> 'B) 'S -> ('A -> 'C) 'S)",
                 dup: "('a 'S -> 'a 'a 'S)",
                 pop: "('a 'S -> 'S)",
                 swap: "('a 'b 'S -> 'b 'a 'S)",
                 dip: "(('S -> 'R) 'a 'S -> 'a 'R)",
                 cond: "(Bool 'a 'a 'S -> 'a 'S)",
                 while: "(('S -> Bool 'R) ('R -> 'S) 'S -> 'S)",
+            };
+            // Standard operations, their definitions and expected types. 
+            // The type is not required: it is used for validation purposes
+            // http://www.kevinalbrecht.com/code/joy-mirror/j03atm.html
+            var stdOps = {
+                // TODO: replace dip with this one 
+                "dipX": ["swap quote compose apply", "(('S -> 'R) 'a 'S -> 'a 'R)"],
+                "rcompose": ["swap compose", "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)"],
+                "papply": ["quote rcompose", "('a ('a 'S -> 'R) 'T -> ('S -> 'R) 'T)"],
+                "dipd": ["quote [dip] rcompose", "(('S -> 'R) 'a 'b 'S -> 'a 'b 'R)"],
+                "popd": ["dip [pop]", "('a 'b 'S -> 'a 'S)"],
+                "popop": ["pop pop", "('a 'b 'S -> 'S)"],
+                "dupd": ["dip [dup]", "('a 'b 'S -> 'a 'b 'b 'S)"],
+                "swapd": ["dip [swap]", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],
+                "rollup": ["quote dip", "('a 'b 'c 'S -> 'b 'c 'a 'S)"],
+                "rolldown": ["pop pop", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],
             };
             var _loop_1 = function (k) {
                 this_1.addInstruction(k, function (stack) { return stack[k](); }, primOps[k]);
@@ -348,6 +364,8 @@ var CatLanguage;
                 and: [function (x, y) { return x && y; }, "(Bool Bool 'S -> Bool 'S)"],
                 or: [function (x, y) { return x || y; }, "(Bool Bool 'S -> Bool 'S)"],
                 xor: [function (x, y) { return x ^ y; }, "(Bool Bool 'S -> Bool 'S)"],
+                succ: [function (x) { return x + 1; }, "(Num 'S -> Num 'S)"],
+                pred: [function (x) { return x - 1; }, "(Num 'S -> Num 'S)"],
             };
             // Register core functions expressed as JavaScript functions 
             for (var k in primFuncs)
@@ -382,7 +400,7 @@ var CatLanguage;
         function CatEvaluator() {
             this.env = new CatEnvironment();
             this.stk = new CatStack();
-            this.type = stringToType('[]');
+            this.type = ti.typeList();
         }
         CatEvaluator.prototype.print = function () {
             console.log(this.stk);
@@ -427,10 +445,10 @@ var CatLanguage;
                 case "identifier":
                     return this.getInstructionType(ast.allText);
                 case "integer":
-                    return new type_inference_1.TypeInference.TypeConstant("Num");
+                    return new ti.TypeConstant("Num");
                 case "true":
                 case "false":
-                    return new type_inference_1.TypeInference.TypeConstant("Bool");
+                    return new ti.TypeConstant("Bool");
                 case "quotation":
                     return this.getQuotationType(ast.children);
                 default:

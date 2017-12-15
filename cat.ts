@@ -1,5 +1,5 @@
 // The Cat Programming language v1.0
-// A type-inferred pure functional stack language heavily inspired by the Joy Programming Language
+// A type-inferred pure functional stack language inspired by the Joy Programming Language
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
 
@@ -7,7 +7,7 @@
 import { Myna as m } from "./node_modules/myna-parser/myna";
 
 // A type-inference library: https://github.com/cdiggins/type-inference
-import { TypeInference as ti } from "./type_inference";
+import * as ti from "./type_inference";
 
 export module CatLanguage
 {
@@ -363,7 +363,7 @@ export module CatLanguage
             var primOps = {
                 apply   : "(('S -> 'R) 'S -> 'R)",
                 quote   : "('a 'S -> ('R -> 'a 'R) 'S)",
-                compose : "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)",
+                compose : "(('B -> 'C) ('A -> 'B) 'S -> ('A -> 'C) 'S)",
                 dup     : "('a 'S -> 'a 'a 'S)",
                 pop     : "('a 'S -> 'S)",
                 swap    : "('a 'b 'S -> 'b 'a 'S)",
@@ -371,6 +371,23 @@ export module CatLanguage
                 cond    : "(Bool 'a 'a 'S -> 'a 'S)",
                 while   : "(('S -> Bool 'R) ('R -> 'S) 'S -> 'S)",
             };
+
+            // Standard operations, their definitions and expected types. 
+            // The type is not required: it is used for validation purposes
+            // http://www.kevinalbrecht.com/code/joy-mirror/j03atm.html
+            var stdOps = {
+                // TODO: replace dip with this one 
+                "dipX"      : ["swap quote compose apply", "(('S -> 'R) 'a 'S -> 'a 'R)"],
+                "rcompose"  : ["swap compose", "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)"],
+                "papply"    : ["quote rcompose", "('a ('a 'S -> 'R) 'T -> ('S -> 'R) 'T)"],
+                "dipd"      : ["quote [dip] rcompose", "(('S -> 'R) 'a 'b 'S -> 'a 'b 'R)"],
+                "popd"      : ["dip [pop]", "('a 'b 'S -> 'a 'S)"],
+                "popop"     : ["pop pop", "('a 'b 'S -> 'S)"],
+                "dupd"      : ["dip [dup]", "('a 'b 'S -> 'a 'b 'b 'S)"],                
+                "swapd"     : ["dip [swap]", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
+                "rollup"    : ["quote dip", "('a 'b 'c 'S -> 'b 'c 'a 'S)"],                
+                "rolldown"  : ["pop pop", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
+            }
 
             // Register the primitive operations (stack built-in functions)
             for (let k in primOps) 
@@ -394,10 +411,8 @@ export module CatLanguage
                 and     : [(x,y) => x && y, "(Bool Bool 'S -> Bool 'S)"],       
                 or      : [(x,y) => x || y, "(Bool Bool 'S -> Bool 'S)"],       
                 xor     : [(x,y) => x ^ y,  "(Bool Bool 'S -> Bool 'S)"],
-
-                // TODO: handle collections. Really: this is a sub-type, what we want is to track the exact type as much as possible. 
-                //len     : [(x) => x.length, "(Collection('a) 'S -> Collection('a) 'S)"],
-                //at      : [(n, x) => x[n], "(Num Collection('a) 'S -> 'a Collection('a) 'S)"],
+                succ    : [(x) => x + 1,    "(Num 'S -> Num 'S)"],
+                pred    : [(x) => x - 1,    "(Num 'S -> Num 'S)"],
             }
 
             // Register core functions expressed as JavaScript functions 
@@ -414,7 +429,7 @@ export module CatLanguage
     {
         env : CatEnvironment = new CatEnvironment();
         stk : CatStack = new CatStack();
-        type : ti.TypeList = stringToType('[]') as ti.TypeList;
+        type : ti.TypeArray = ti.typeList()
         
         print() {
             console.log(this.stk);
