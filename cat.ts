@@ -1,4 +1,4 @@
-// The Cat Programming language v1.0
+// The Cat Programming language v2.0
 // A type-inferred pure functional stack language inspired by the Joy Programming Language
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
@@ -7,7 +7,7 @@
 import { Myna as m } from "./node_modules/myna-parser/myna";
 
 // A type-inference library: https://github.com/cdiggins/type-inference
-import * as ti from "./type_inference";
+import { TypeInference as ti } from "./type_inference";
 
 export module CatLanguage
 {
@@ -20,13 +20,13 @@ export module CatLanguage
         this.true           = m.keyword("true").ast;
         this.false          = m.keyword("false").ast;
         this.typeExprRec    = m.delay(() => { return _this.typeExpr});
-        this.typeList       = m.guardedSeq('[', m.ws, this.typeExprRec.ws.zeroOrMore, ']').ast;
+        this.typeArray      = m.guardedSeq('[', m.ws, this.typeExprRec.ws.zeroOrMore, ']').ast;
         this.funcInput      = this.typeExprRec.ws.zeroOrMore.ast;
         this.funcOutput     = this.typeExprRec.ws.zeroOrMore.ast;
         this.typeFunc       = m.guardedSeq('(', m.ws, this.funcInput, '->', m.ws, this.funcOutput, ')').ast;
         this.typeVar        = m.guardedSeq("'", m.identifier).ast;
         this.typeConstant   = m.identifier.ast;
-        this.typeExpr       = m.choice(this.typeList, this.typeFunc, this.typeVar, this.typeConstant).ast;        
+        this.typeExpr       = m.choice(this.typeArray, this.typeFunc, this.typeVar, this.typeConstant).ast;        
         this.recTerm        = m.delay(() => { return _this.term; });
         this.quotation      = m.guardedSeq('[', m.ws, this.recTerm.ws.zeroOrMore, ']').ast;
         this.term           = m.choice(this.quotation, this.integer, this.true, this.false, this.identifier); 
@@ -45,32 +45,30 @@ export module CatLanguage
     //====================================================================
     // Helper Functions
 
-    // Creates a flattened representation of type pairs appropriate for usage with Cat
-    export function flattenTypePairs(t:ti.TypeExpr) : string {
-        return t instanceof ti.TypePair
-            ? t.typeA + " " + flattenTypePairs(t.typeB)
-            : typeToString(t)
+    // Converts a cons list into a flat list of types like Cat prefers
+    export function consListToString(t:ti.Type) : string {
+        if (t instanceof ti.TypeArray)
+            return typeToString(t.types[0]) + " " + consListToString(t.types[1]);
+        else 
+            return typeToString(t);
     }
-        
-    // Returns a string representation of a type designed for Cat
-    export function typeToString(t:ti.TypeExpr) : string {
-        return t instanceof ti.TypeFunction
-            ? "(" + flattenTypePairs(t.inputs) + " -> " + flattenTypePairs(t.outputs) + ")"
-            : t.toString();
-    }    
 
     // Converts a string into a type expression
-    export function stringToType(input:string) : ti.TypeExpr {
-        var ast = m.parse(m.grammars['cat'].typeExpr, input);
-        return astToType(ast);
+    export function typeToString(t:ti.Type) : string {
+        if (ti.isFunctionType(t)) {
+            return "(" 
+                + consListToString(ti.functionInput(t)) + " -> " 
+                + consListToString(ti.functionOutput(t)) + ")";
+        }
+        else {
+            return t.toString();
+        }
     }
 
-    // Converts a string into a type-list expression
-    export function stringToTypeFunction(s:string) : ti.TypeFunction {
-        var t = stringToType(s);
-        if (t instanceof ti.TypeFunction)
-            return t;
-        throw new Error("Not a type function: " + s);
+    // Converts a string into a type expression
+    export function stringToType(input:string) : ti.Type {
+        var ast = m.parse(m.grammars['cat'].typeExpr, input);
+        return astToType(ast);
     }
 
     // Converts a series of cat terms into an AST
@@ -78,32 +76,42 @@ export module CatLanguage
         return m.parse(m.grammars['cat'].terms, input);
     }
 
-    export function astNodesToType(nodes:m.AstNode[]) : ti.TypeExpr {
-        if (nodes.length == 0) 
-            throw new Error("Expected at least one element");
-        if (nodes.length == 1)
-            return astToType(nodes[0]);
-        return new ti.TypePair(astToType(nodes[0]), astNodesToType(nodes.slice(1)));
+    // Converts the AST children to a cons list
+    export function astToConsList(astNodes:m.AstNode[]) : ti.Type {
+        if (astNodes.length == 0)
+            throw new Error("Expected at least one AST node");
+        var tmp = astToType(astNodes[0]);
+        if (astNodes.length == 1)
+        {
+            if (!(tmp instanceof ti.TypeVariable))
+                throw new Error("The last type of a function input or output must be a type variable");
+            return tmp;
+        }
+        else {
+            return ti.typeArray([tmp,astToConsList(astNodes.slice(1))]);
+        }
     }
         
     // Converts an AST generated from a parse int o type expression
-    export function astToType(ast:m.AstNode) : ti.TypeExpr {
+    export function astToType(ast:m.AstNode) : ti.Type {
         if (!ast)
             throw new Error("Missing AST node");
 
         switch (ast.name)
         {
             case "typeVar":
-                return new ti.TypeVariable(ast.allText.substr(1));
+                return ti.typeVar(ast.allText.substr(1));
             case "typeConstant":
-                return new ti.TypeConstant(ast.allText);
+                return ti.typeConstant(ast.allText);
             case "typeFunc":
-                return new ti.TypeFunction(astToType(ast.children[0]), astToType(ast.children[1]));
+                return ti.functionType(
+                    astToType(ast.children[0]), 
+                    astToType(ast.children[1]));
             case "funcInput":
             case "funcOutput":
-                return astNodesToType(ast.children);
-            case "typeList":
-                return new ti.TypeList(ast.children.map(astToType));
+                return astToConsList(ast.children);
+            case "typeArray":
+                return ti.typeArray(ast.children.map(astToType));
             case "typeExpr":
                 return astToType(ast.children[0]);
             default: 
@@ -111,8 +119,36 @@ export module CatLanguage
         }
     }
 
+    // Converts an AST into a Cat instruction
+    export function astToInstruction(ast:m.AstNode, env:CatEnvironment) : CatInstruction {
+        if (!ast)
+            throw new Error("Missing AST node");
+
+        switch (ast.name)
+        {
+            case "identifier":
+                return env.getInstruction(ast.allText);
+            case "integer":
+                return new CatConstant(parseInt(ast.allText));
+            case "true":
+                return new CatConstant(true);
+            case "false":
+                return new CatConstant(false);
+            case "quotation":
+                return new CatQuotation(ast.children.map((c) => astToInstruction(c, env)))
+            default: 
+                throw new Error("Unrecognized term: " + ast.name);
+        }
+    }
+
+    // Converts a string into a Cat instruction 
+    export function stringToInstruction(s:string, env:CatEnvironment) : CatInstruction {
+        var ast = m.parse(m.grammars['cat'].terms, s);
+        return new CatQuotation(ast.children.map((c) => astToInstruction(c, env)));
+    }
+
     // Returns the type of data
-    export function dataType(data:CatValue) : ti.TypeExpr {    
+    export function dataType(data:CatValue) : ti.Type {    
         if (typeof(data) == 'number')
             return new ti.TypeConstant('Num');
         if (typeof(data) == 'boolean')
@@ -125,15 +161,40 @@ export module CatLanguage
     }
 
     // Creates a Cat function type: adding the implicit row variable 
-    export function createCatFunctionType(inputs:ti.TypeExpr[], outputs:ti.TypeExpr[]) : ti.TypeFunction {
-        var row = new ti.TypeVariable('_');
-        var input = ti.arrayToTypePair(inputs, row);
-        var output = ti.arrayToTypePair(outputs, row);
-        return new ti.TypeFunction(input, output);
+    export function createCatFunctionType(inputs:ti.Type[], outputs:ti.Type[]) : ti.TypeArray {
+        var row = ti.typeVar('_');
+        inputs.push(row); 
+        outputs.push(row);
+        return ti.functionType(ti.typeConsList(inputs), ti.typeConsList(outputs));
+    }
+
+    // Returns true if the type can be a valid input/output of a Cat function type.
+    export function isValidFunctionPart(t:ti.Type) : boolean {
+        if (t instanceof ti.TypeArray) {
+            if (t.types.length != 2)
+                return false;                
+            return isValidFunctionPart(t.types[1]);
+        }
+        else {
+            return t instanceof ti.TypeVariable;
+        }
+    }
+    
+    // Returns true if the function is truly a valid Cat function type
+    export function isCatFunctionType(t:ti.Type) : boolean {
+        if (!ti.isFunctionType(t))
+            return false;
+        var input = ti.functionInput(t);
+        if (!isValidFunctionPart(input)) 
+            return false;
+        var output = ti.functionOutput(t);
+        if (!isValidFunctionPart(output))
+            return false;
+        return true;
     }
         
     // Given the type of the current stack, and a function type, returns the type of the resulting stack.
-    export function evalType(stack : ti.TypeList, func : ti.TypeList) : ti.TypeList {
+    export function evalType(stack : ti.TypeArray, func : ti.TypeArray) : ti.TypeArray {
         throw new Error("Not implemented yet");
     }
 
@@ -142,23 +203,13 @@ export module CatLanguage
         func.apply(stack);
     }
 
-    // Returns the type of the id function 
-    export function idType() : ti.TypeFunction {
-        return stringToTypeFunction("('S -> 'S)");    
-    }
-
     // Gets the type of a sequence of instructions 
-    export function quotationType(q:CatInstruction[]) : ti.TypeFunction {
-        if (q.length == 0)
-            return idType();    
-        var r = q[0].type;
-        for (var i=1; i < q.length; ++i) 
-            r = ti.getComposedType(r, q[i].type); 
-        return r;
+    export function quotationType(q:CatInstruction[]) : ti.TypeArray {
+        return ti.composeFunctionChain(q.map(i => i.type));
     }
-
+    
     // Given the type of a stack, validates that the stack is in fact compatible with it or throws an error 
-    export function validateType(stack : CatStack, type : ti.TypeList) {
+    export function validateType(stack : CatStack, type : ti.TypeArray) {
         throw new Error("Not implemented");
     }
 
@@ -184,8 +235,11 @@ export module CatLanguage
         constructor( 
             public name : string,
             public func : CatFunction,
-            public type : ti.TypeFunction) 
-        { }
+            public type : ti.TypeArray) 
+        { 
+            if (!isCatFunctionType(type))
+                throw new Error("Expected a valid Cat function type to describe an instruction");
+        }
 
         toString() : string {
             return this.name;
@@ -314,7 +368,7 @@ export module CatLanguage
         compose() {
             var a = this.popType<CatInstruction>();
             var b = this.popType<CatInstruction>();
-            this.push(new CatQuotation([a, b]));
+            this.push(new CatQuotation([b, a]));
         }
 
         // Calls a plain JavaScript function using arguments from the stack
@@ -332,17 +386,80 @@ export module CatLanguage
     {
         // The list of defined instruction. 
         instructions : ICatInstructionLookup = {};
+
+        // These are operations directly available on the "stack" object.   
+        // They are retrieved by the name. 
+        primOps = {
+            apply   : "(('S -> 'R) 'S -> 'R)",
+            quote   : "('a 'S -> ('R -> 'a 'R) 'S)",
+            compose : "(('B -> 'C) ('A -> 'B) 'S -> ('A -> 'C) 'S)",
+            dup     : "('a 'S -> 'a 'a 'S)",
+            pop     : "('a 'S -> 'S)",
+            swap    : "('a 'b 'S -> 'b 'a 'S)",
+            dip     : "(('S -> 'R) 'a 'S -> 'a 'R)",
+            cond    : "(Bool 'a 'a 'S -> 'a 'S)",
+            while   : "(('S -> Bool 'R) ('R -> 'S) 'S -> 'S)",
+        };
+
+        // These are additional primitives defined as lambdas        
+        primFuncs = {
+            eq      : [(x,y) => x == y, "('a 'a 'S -> Bool 'S)"],
+            neq     : [(x,y) => x != y, "('a 'a 'S -> Bool 'S)"],
+            add     : [(x,y) => x + y,  "(Num Num 'S -> Num 'S)"],
+            neg     : [(x) => -x,       "(Num 'S -> Num 'S)"],
+            sub     : [(x,y) => x - y,  "(Num Num 'S -> Num 'S)"],
+            mul     : [(x,y) => x * y,  "(Num Num 'S -> Num 'S)"],
+            div     : [(x,y) => x / y,  "(Num Num 'S -> Num 'S)"],
+            mod     : [(x,y) => x % y,  "(Num Num 'S -> Num 'S)"],
+            not     : [(x) => !x,       "(Bool 'S -> Bool 'S)"],
+            gt      : [(x,y) => x > y,  "(Num Num 'S -> Bool 'S)"],
+            gteq    : [(x,y) => x >= y, "(Num Num 'S -> Bool 'S)"],
+            lt      : [(x,y) => x < y,  "(Num Num 'S -> Bool 'S)"],
+            lteq    : [(x,y) => x <= y, "(Num Num 'S -> Bool 'S)"],       
+            and     : [(x,y) => x && y, "(Bool Bool 'S -> Bool 'S)"],       
+            or      : [(x,y) => x || y, "(Bool Bool 'S -> Bool 'S)"],       
+            xor     : [(x,y) => x ^ y,  "(Bool Bool 'S -> Bool 'S)"],
+            succ    : [(x) => x + 1,    "(Num 'S -> Num 'S)"],
+            pred    : [(x) => x - 1,    "(Num 'S -> Num 'S)"],
+        }
+
+        // Standard operations, their definitions and expected types. 
+        // The type is not required: it is used for validation purposes
+        // http://www.kevinalbrecht.com/code/joy-mirror/j03atm.html
+        stdOps = {
+            // TODO: replace dip with this one 
+            //"dipX"      : ["swap quote compose apply", "(('S -> 'R) 'a 'S -> 'a 'R)"],
+            "rcompose"  : ["swap compose", "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)"],
+            "papply"    : ["quote rcompose", "('a ('a 'S -> 'R) 'T -> ('S -> 'R) 'T)"],
+            "dipd"      : ["quote [dip] rcompose", "(('S -> 'R) 'a 'b 'S -> 'a 'b 'R)"],
+            "popd"      : ["dip [pop]", "('a 'b 'S -> 'a 'S)"],
+            "popop"     : ["pop pop", "('a 'b 'S -> 'S)"],
+            "dupd"      : ["dip [dup]", "('a 'b 'S -> 'a 'b 'b 'S)"],                
+            "swapd"     : ["dip [swap]", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
+            "rollup"    : ["quote dip", "('a 'b 'c 'S -> 'b 'c 'a 'S)"],                
+            "rolldown"  : ["pop pop", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
+        }
         
-        // Helper function to get the function associated with an instrurction
+        // Helper function to get the function associated with an instruction
         getFunction(s:string) : Function {
-            return this.instructions[s].func;
+            return this.getInstruction(s).func;
+        }
+
+        // Helper function to get the function associated with an instruction
+        getInstruction(s:string) : CatInstruction {
+            if (!(s in this.instructions))
+                throw new Error("Could not find instruction: " + s);
+            return this.instructions[s];
         }
 
         // Helper function to get the type associated with an instruction
-        getType(s:string) : ti.TypeList {
+        getType(s:string) : ti.TypeArray {
+            if (!(s in this.instructions))
+                throw new Error("Could not find instruction: " + s);
             return this.instructions[s].type;
         }
 
+        // Gets the list of all defined Cat instructions 
         getInstructions() : CatInstruction[] {
             var r = new Array<CatInstruction>();
             for (var k in this.instructions)
@@ -350,74 +467,61 @@ export module CatLanguage
             return r;
         }
 
+        getQuotationType(astNodes : m.AstNode[]) : ti.TypeArray {
+            var types = astNodes.map(ast => astToType(ast) as ti.TypeArray);
+            return ti.composeFunctionChain(types);
+        }
+
+        getTypeFromAst(ast : m.AstNode) : ti.Type {
+            if (!ast) throw new Error("Not a valid AST");        
+            switch (ast.name) 
+            {
+                case "identifier":
+                    return this.getType(ast.allText);
+                case "integer":
+                    return new ti.TypeConstant("Num");
+                case "true":
+                case "false":
+                    return new ti.TypeConstant("Bool");
+                case "quotation":
+                    return this.getQuotationType(ast.children);
+                default:
+                    throw new Error("AST node has no known type: " + ast.name);
+            }
+        }
+
         // Creates a new instruction and returns it 
-        addInstruction(name:string, func:CatFunction, type:string) {
-            return this.instructions[name] = new CatInstruction(name, func, stringToTypeFunction(type));
+        addInstruction(name:string, func:CatFunction, type:string) : CatInstruction {
+            return this.instructions[name] = new CatInstruction(name, func, stringToType(type) as ti.TypeArray);
+        }
+
+        // Creates a new instruction from a definition
+        addDefinition(name:string, code:string, type:string = null) : CatInstruction {
+            var i = stringToInstruction(code, this);
+            var inferredType = i.type;
+            if (type)
+            {
+                var expectedType = stringToType(type);
+                if (!ti.areTypesSame(inferredType, expectedType))
+                    throw new Error("Inferred type: " + i.type + " does not match expected type: " + type);
+            }
+            return this.instructions[name];
         }
 
         // Constructor 
         constructor() 
         {        
-            // These are operations directly available on the "stack" object.   
-            // They are retrieved by the name. 
-            var primOps = {
-                apply   : "(('S -> 'R) 'S -> 'R)",
-                quote   : "('a 'S -> ('R -> 'a 'R) 'S)",
-                compose : "(('B -> 'C) ('A -> 'B) 'S -> ('A -> 'C) 'S)",
-                dup     : "('a 'S -> 'a 'a 'S)",
-                pop     : "('a 'S -> 'S)",
-                swap    : "('a 'b 'S -> 'b 'a 'S)",
-                dip     : "(('S -> 'R) 'a 'S -> 'a 'R)",
-                cond    : "(Bool 'a 'a 'S -> 'a 'S)",
-                while   : "(('S -> Bool 'R) ('R -> 'S) 'S -> 'S)",
-            };
-
-            // Standard operations, their definitions and expected types. 
-            // The type is not required: it is used for validation purposes
-            // http://www.kevinalbrecht.com/code/joy-mirror/j03atm.html
-            var stdOps = {
-                // TODO: replace dip with this one 
-                "dipX"      : ["swap quote compose apply", "(('S -> 'R) 'a 'S -> 'a 'R)"],
-                "rcompose"  : ["swap compose", "(('A -> 'B) ('B -> 'C) 'S -> ('A -> 'C) 'S)"],
-                "papply"    : ["quote rcompose", "('a ('a 'S -> 'R) 'T -> ('S -> 'R) 'T)"],
-                "dipd"      : ["quote [dip] rcompose", "(('S -> 'R) 'a 'b 'S -> 'a 'b 'R)"],
-                "popd"      : ["dip [pop]", "('a 'b 'S -> 'a 'S)"],
-                "popop"     : ["pop pop", "('a 'b 'S -> 'S)"],
-                "dupd"      : ["dip [dup]", "('a 'b 'S -> 'a 'b 'b 'S)"],                
-                "swapd"     : ["dip [swap]", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
-                "rollup"    : ["quote dip", "('a 'b 'c 'S -> 'b 'c 'a 'S)"],                
-                "rolldown"  : ["pop pop", "('a 'b 'c 'S -> 'a 'c 'b 'S)"],                
-            }
-
             // Register the primitive operations (stack built-in functions)
-            for (let k in primOps) 
-                this.addInstruction(k, (stack) => stack[k](), primOps[k]);
-
-            // These are additional primitives defined as lambdas
-            var primFuncs = {
-                eq      : [(x,y) => x == y, "('a 'a 'S -> Bool 'S)"],
-                neq     : [(x,y) => x != y, "('a 'a 'S -> Bool 'S)"],
-                add     : [(x,y) => x + y,  "(Num Num 'S -> Num 'S)"],
-                neg     : [(x) => -x,       "(Num 'S -> Num 'S)"],
-                sub     : [(x,y) => x - y,  "(Num Num 'S -> Num 'S)"],
-                mul     : [(x,y) => x * y,  "(Num Num 'S -> Num 'S)"],
-                div     : [(x,y) => x / y,  "(Num Num 'S -> Num 'S)"],
-                mod     : [(x,y) => x % y,  "(Num Num 'S -> Num 'S)"],
-                not     : [(x) => !x,       "(Bool 'S -> Bool 'S)"],
-                gt      : [(x,y) => x > y,  "(Num Num 'S -> Bool 'S)"],
-                gteq    : [(x,y) => x >= y, "(Num Num 'S -> Bool 'S)"],
-                lt      : [(x,y) => x < y,  "(Num Num 'S -> Bool 'S)"],
-                lteq    : [(x,y) => x <= y, "(Num Num 'S -> Bool 'S)"],       
-                and     : [(x,y) => x && y, "(Bool Bool 'S -> Bool 'S)"],       
-                or      : [(x,y) => x || y, "(Bool Bool 'S -> Bool 'S)"],       
-                xor     : [(x,y) => x ^ y,  "(Bool Bool 'S -> Bool 'S)"],
-                succ    : [(x) => x + 1,    "(Num 'S -> Num 'S)"],
-                pred    : [(x) => x - 1,    "(Num 'S -> Num 'S)"],
-            }
+            for (let k in this.primOps) 
+                this.addInstruction(k, (stack) => stack[k](), this.primOps[k]);
 
             // Register core functions expressed as JavaScript functions 
-            for (let k in primFuncs) 
-                this.addInstruction(k, jsFunctionToCat(primFuncs[k][0]), primFuncs[k][1]);
+            for (let k in this.primFuncs) 
+                this.addInstruction(k, jsFunctionToCat(this.primFuncs[k][0]), this.primFuncs[k][1]);
+
+            // Register core functions expressed as JavaScript functions 
+            for (let k in this.stdOps) 
+                this.addDefinition(k, this.stdOps[k][0], this.stdOps[k][1]);
         }
     }
 
@@ -429,7 +533,7 @@ export module CatLanguage
     {
         env : CatEnvironment = new CatEnvironment();
         stk : CatStack = new CatStack();
-        type : ti.TypeArray = ti.typeList()
+        type : ti.TypeArray = ti.typeArray([]);
         
         print() {
             console.log(this.stk);
@@ -444,51 +548,16 @@ export module CatLanguage
         }
 
         evalInstruction(instruction : string) {
-            var type = this.getInstructionType(instruction);
-            var f = this.env.getFunction(instruction);
-            if (!f) throw new Error("Could not find instruction function " + instruction);
-            f(this.stk);
-            // TODO: update the current type
-        }
-
-        getInstructionType(instruction : string) : ti.TypeList {
             var type = this.env.getType(instruction);
-            if (!type) throw new Error("Could not find instruction type " + instruction);
-            return type;
+            var f = this.env.getFunction(instruction);
+            if (!f) throw new Error("Could not find function " + instruction);
+            this.type = ti.applyFunction(this.type, type);
+            f(this.stk);            
         }
 
-        composeFunctionTypes(t1 : ti.TypeList, t2 : ti.TypeList) : ti.TypeList {
-            // add all of the t1 variables, add all of the t2 variables. 
-            //var ti = new ti.TypeInference.
-
-            throw new Error('todo: not implemented');
-        }
-
-        getQuotationType(astNodes : m.AstNode[]) : ti.TypeList {
-            throw new Error('todo: not implemented');
-        }
-
-        push(value : any, type : ti.TypeExpr) {
+        push(value : any, type : ti.Type) {
             this.type.types.unshift(type);
             this.stk.push(value);
-        }
-
-        getType(ast : m.AstNode) : ti.TypeExpr {
-            if (!ast) throw new Error("Not a valid AST");        
-            switch (ast.name) 
-            {
-                case "identifier":
-                    return this.getInstructionType(ast.allText);
-                case "integer":
-                    return new ti.TypeConstant("Num");
-                case "true":
-                case "false":
-                    return new ti.TypeConstant("Bool");
-                case "quotation":
-                    return this.getQuotationType(ast.children);
-                default:
-                    throw new Error("AST node has no known type: " + ast.name);
-            }
         }
 
         evalTerm(ast : m.AstNode) {
@@ -500,13 +569,13 @@ export module CatLanguage
                 case "identifier":
                     return this.evalInstruction(ast.allText);
                 case "integer":
-                    return this.push(parseInt(ast.allText), this.getType(ast));
+                    return this.push(parseInt(ast.allText), this.env.getTypeFromAst(ast));
                 case "true":
-                    return this.push(true, this.getType(ast));
+                    return this.push(true, this.env.getTypeFromAst(ast));
                 case "false":
-                    return this.push(false, this.getType(ast));
+                    return this.push(false, this.env.getTypeFromAst(ast));
                 case "quotation":
-                    return this.push((stk) => this.evalTerms(ast), this.getType(ast));
+                    return this.push((stk) => this.evalTerms(ast), this.env.getTypeFromAst(ast));
                 default:
                     throw new Error("AST node type is not executable: " + ast.name);
             }

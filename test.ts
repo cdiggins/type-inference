@@ -1,18 +1,78 @@
-import { TypeCore } from "./type_core";
-import { TypeParser as tp } from "./type_parser";
-import * as ti from "./type_inference";
+import { TypeInference as ti } from "./type_inference";
+import { Myna as m } from "./node_modules/myna-parser/myna";
+
+function registerGrammars() 
+{
+    var typeGrammar = new function() 
+    {
+        var _this = this;
+        this.typeExprRec            = m.delay(() => { return _this.typeExpr});
+        this.typeList               = m.guardedSeq('(', m.ws, this.typeExprRec.ws.zeroOrMore, ')').ast;
+        this.typeVar                = m.guardedSeq("'", m.identifier).ast;
+        this.typeConstant           = m.identifier.ast;
+        this.typeExpr               = m.choice(this.typeList, this.typeVar, this.typeConstant).ast;        
+    }        
+
+    m.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);    
+}
+
+registerGrammars();
+
+var parser = m.parsers['type'];
+
+function runTest(f:() => any, testName:string, expectFail:boolean = false) {
+    try {
+        console.log("Running test: " + testName);
+        var result = f();
+        console.log("Result = " + result);
+        if (result && !expectFail || !result && expectFail) {
+            console.log("PASSED");
+        }
+        else {
+            console.log("FAILED");
+        }
+    }   
+    catch (e) {
+        if (expectFail) {
+            console.log("PASSED: expected fail, error caught: " + e.message);
+        }
+        else {
+            console.log("FAILED: error caught: " + e.message);
+        }
+    }
+}
+
+export function stringToType(input:string) : ti.Type {
+    var ast = parser(input);
+    if (ast.end != input.length) 
+        throw new Error("Only part of input was consumed");
+    return astToType(ast);
+}
+
+export function astToType(ast:m.AstNode) : ti.Type {
+    if (!ast)
+        return null;
+    switch (ast.name)
+    {
+        case "typeVar":
+            return ti.typeVar(ast.allText.substr(1));
+        case "typeConstant":
+            return ti.typeConstant(ast.allText);
+        case "typeList":
+            return ti.typeArray(ast.children.map(astToType));
+        case "typeExpr":
+            if (ast.children.length != 1) 
+                throw new Error("Expected only one child of node, not " + ast.children.length);
+            return astToType(ast.children[0]);
+        default: 
+            throw new Error("Unrecognized type expression: " + ast.name);
+    }
+}
+
 
 function testParse(input:string, fail:boolean=false)
-{        
-    try
-    {
-        var t = tp.stringToType(input);
-        console.log("input = " + input + " result= " + t);
-    }
-    catch (e)
-    {
-        console.log("input = " + input + " error= " + e);
-    }
+{
+    runTest(() => stringToType(input), input, fail);
 }
 
 testParse("abc");
@@ -27,14 +87,22 @@ testParse("(function int 't ())");
 testParse("(function int float)");
 testParse("(()())");
 testParse("(function (int (int 'a)) (float (float 'a)))");
+testParse("(()()", true);
+testParse("()()", true);
+testParse("()())", true);
+testParse("(a b", true);
+testParse("a b", true);
+testParse("a b)", true);
 
-function testUnification(a:string, b:string)
+function testUnification(a:string, b:string, fail:boolean = false)
 {
-    var engine = new ti.Unifier();
-    var expr1 = ti.stringToType(a);
-    var expr2 = ti.stringToType(b);
-    engine.unifyTypes(expr1, expr2);
-    engine.logState();
+    runTest( () => {
+        var engine = new ti.Unifier();
+        var expr1 = stringToType(a);
+        var expr2 = stringToType(b);
+        engine.unifyTypes(expr1, expr2);
+        return "success";
+    }, "Unifying " + a + " with " + b, fail);
 }
 
 testUnification("'a", "int");
@@ -42,12 +110,25 @@ testUnification("int", "'a");
 testUnification("int", "int");
 testUnification("('a)", "(int)");
 testUnification("('a (int 'b))", "(int (int (float string)))");
-testUnification("'a", "['a int]");
-testUnification("('a -> 'b)", "(int int -> float)");
+testUnification("'a", "('b int)");
+testUnification("(function 'a 'b)", "(function (int int) float)");
+testUnification("(function ('a 'b) 'b)", "(function (int (int int)) 'c)");
+testUnification("(function ('a 'b) 'b)", "(function (int (int int)) ('c))", true);
 
-declare var process : any;
-process.exit();
+/*
+function testUnification(a:string, b:string, fail:boolean = false)
+{
+    runTest( () => {
+        var engine = new ti.Unifier();
+        var expr1 = stringToType(a);
+        var expr2 = stringToType(b);
+        engine.unifyTypes(expr1, expr2);
+        return "success";
+    }, "Unifying " + a + " with " + b, fail);
+}
+*/
 
+/*
 {
     console.log("Constraint Tests");
 
@@ -111,6 +192,7 @@ process.exit();
         te.logState();
     }
 }
+*/
 
 declare var process : any;
 process.exit();

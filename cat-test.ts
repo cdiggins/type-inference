@@ -40,7 +40,7 @@ function testComposition() {
 function testComposeInstruction(i1:cat.CatInstruction, i2:cat.CatInstruction) {
     try {
         var q = new cat.CatQuotation([i1,i2]);
-        var t = ti.getComposedType(i1.type, i2.type);
+        var t = ti.composeFunctions(i1.type, i2.type);
         console.log(q + " : " + cat.typeToString(t));
     }
     catch (e) {
@@ -63,9 +63,13 @@ function testEnvironment() {
     printEnvironment(ce);
 }
 
-testEvaluator();
+//testEvaluator();
 //testEnvironment();
-testComposition();
+//testComposition();
+//testCompose("[dup]")
+
+globalEnv.addDefinition("doubleDip", "dup dup", "('a -> 'a 'a 'a 's)");
+globalEnv.addDefinition("test", "[dup] dup");
 
 declare var process : any;
 process.exit();

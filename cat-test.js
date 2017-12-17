@@ -37,7 +37,7 @@ function testComposition() {
 function testComposeInstruction(i1, i2) {
     try {
         var q = new cat_1.CatLanguage.CatQuotation([i1, i2]);
-        var t = type_inference_1.TypeInference.getComposedType(i1.type, i2.type);
+        var t = type_inference_1.TypeInference.composeFunctions(i1.type, i2.type);
         console.log(q + " : " + cat_1.CatLanguage.typeToString(t));
     }
     catch (e) {
@@ -55,8 +55,11 @@ function testEnvironment() {
     var ce = new cat_1.CatLanguage.CatEnvironment();
     printEnvironment(ce);
 }
-testEvaluator();
+//testEvaluator();
 //testEnvironment();
-testComposition();
+//testComposition();
+//testCompose("[dup]")
+globalEnv.addDefinition("doubleDip", "dup dup", "('a -> 'a 'a 'a 's)");
+globalEnv.addDefinition("test", "[dup] dup");
 process.exit();
 //# sourceMappingURL=cat-test.js.map
