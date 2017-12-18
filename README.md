@@ -484,3 +484,7 @@ x
 ## Term Rewriting 
 
 
+//==
+
+1. compose apply failed when it shouldn't.
+1. apply pop give the wrong type.

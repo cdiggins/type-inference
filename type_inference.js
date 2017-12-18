@@ -133,30 +133,6 @@ var TypeInference;
         return TypeUnifier;
     }());
     TypeInference.TypeUnifier = TypeUnifier;
-    // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
-    function normalizeVarNames(t) {
-        var r = clone(t, 0);
-        var names = {};
-        var count = 0;
-        for (var _i = 0, _a = descendantTypes(r); _i < _a.length; _i++) {
-            var dt = _a[_i];
-            if (dt instanceof TypeVariable) {
-                if (!(dt.name in names))
-                    dt.name = names[dt.name] = "T" + count++;
-                else
-                    dt.name = names[dt.name];
-            }
-        }
-        return r;
-    }
-    TypeInference.normalizeVarNames = normalizeVarNames;
-    // Compares whether two types are the same after normalizing the type variables. 
-    function areTypesSame(t1, t2) {
-        var s1 = normalizeVarNames(t1).toString();
-        var s2 = normalizeVarNames(t2).toString();
-        return s1 === s2;
-    }
-    TypeInference.areTypesSame = areTypesSame;
     // This is helper function helps determine whether a type variable should belong 
     function _isTypeVarUsedElsewhere(t, varName, pos) {
         for (var i = 0; i < t.types.length; ++i)
@@ -343,12 +319,12 @@ var TypeInference;
     TypeInference.typeVar = typeVar;
     // Creates a function type, as a special kind of a TypeArray 
     function functionType(input, output) {
-        return typeArray([typeConstant('fun'), input, output]);
+        return typeArray([input, typeConstant('->'), output]);
     }
     TypeInference.functionType = functionType;
     // Creates an array type, as a special kind of TypeArray
     function arrayType(element) {
-        return typeArray([typeConstant('array'), element]);
+        return typeArray([element, typeConstant('*')]);
     }
     TypeInference.arrayType = arrayType;
     // Returns true if and only if the type is a type constant with the specified name
@@ -356,16 +332,21 @@ var TypeInference;
         return t instanceof TypeConstant && t.name === name;
     }
     TypeInference.isTypeConstant = isTypeConstant;
+    // Returns true if and only if the type is a type constant with the specified name
+    function isTypeArray(t, name) {
+        return t instanceof TypeArray && t.types.length == 2 && isTypeConstant(t.types[1], '*');
+    }
+    TypeInference.isTypeArray = isTypeArray;
     // Returns true iff the type is a TypeArary representing a function type
     function isFunctionType(t) {
-        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[0], 'fun');
+        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[1], '->');
     }
     TypeInference.isFunctionType = isFunctionType;
     // Returns the input types (argument types) of a TypeArray representing a function type
     function functionInput(t) {
         if (!isFunctionType(t))
             throw new Error("Expected a function type");
-        return t.types[1];
+        return t.types[0];
     }
     TypeInference.functionInput = functionInput;
     // Returns the output types (return types) of a TypeArray representing a function type
@@ -402,30 +383,60 @@ var TypeInference;
         return functionType(s, s);
     }
     TypeInference.idFunction = idFunction;
-    // Provides new names of vars by adding "$x" to it where x is a new id.
-    // Any previous "$x" is stripped. This modifies 
-    function cloneTypeList(t, id) {
-        var r = typeArray(t.types.map(function (x) { return clone(x, id); }));
-        for (var _i = 0, _a = r.typeVarDeclarations; _i < _a.length; _i++) {
-            var v = _a[_i];
-            var tmp = v.name.indexOf("$");
-            if (tmp > 0)
-                v.name = v.name.substr(0, tmp);
-            v.name = v.name + "$" + id;
-        }
-        return r;
-    }
-    TypeInference.cloneTypeList = cloneTypeList;
     // When unifying I will need to use this function.
-    function clone(t, id) {
+    function clone(t) {
         if (t instanceof TypeVariable)
             return typeVar(t.name);
         else if (t instanceof TypeConstant)
             return typeConstant(t.name);
         else if (t instanceof TypeArray)
-            return cloneTypeList(t, id);
+            return typeArray(t.types.map(clone));
     }
     TypeInference.clone = clone;
+    //========================================================
+    // Variable name functions
+    // Renames all variables with the new
+    function renameVars(t, names) {
+        var r = clone(t);
+        for (var _i = 0, _a = descendantTypes(r); _i < _a.length; _i++) {
+            var v = _a[_i];
+            if (v instanceof TypeVariable)
+                v.name = names[v.name];
+        }
+        return r;
+    }
+    TypeInference.renameVars = renameVars;
+    // Generates fresh variable names for all the variables in the list
+    function generateFreshNames(t, id) {
+        var names = {};
+        for (var _i = 0, _a = descendantTypes(t); _i < _a.length; _i++) {
+            var v = _a[_i];
+            if (v instanceof TypeVariable)
+                names[v.name] = v.name + "$" + id;
+        }
+        return renameVars(t, names);
+    }
+    TypeInference.generateFreshNames = generateFreshNames;
+    // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
+    function normalizeVarNames(t) {
+        var names = {};
+        var count = 0;
+        for (var _i = 0, _a = descendantTypes(t); _i < _a.length; _i++) {
+            var dt = _a[_i];
+            if (dt instanceof TypeVariable)
+                if (!(dt.name in names))
+                    names[dt.name] = "t" + count++;
+        }
+        return renameVars(t, names);
+    }
+    TypeInference.normalizeVarNames = normalizeVarNames;
+    // Compares whether two types are the same after normalizing the type variables. 
+    function areTypesSame(t1, t2) {
+        var s1 = normalizeVarNames(t1).toString();
+        var s2 = normalizeVarNames(t2).toString();
+        return s1 === s2;
+    }
+    TypeInference.areTypesSame = areTypesSame;
     //==========================================================================================
     // Type Environments 
     // 
@@ -518,8 +529,8 @@ var TypeInference;
             throw new Error("Expected a function type for f");
         if (!isFunctionType(g))
             throw new Error("Expected a function type for g");
-        f = clone(f, 0);
-        g = clone(g, 1);
+        f = generateFreshNames(f, 0);
+        g = generateFreshNames(g, 1);
         if (TypeInference.trace) {
             console.log("f: " + f);
             console.log("g: " + g);
@@ -532,7 +543,7 @@ var TypeInference;
         e.unifyTypes(outF, inG);
         var input = e.getUnifiedType(inF);
         var output = e.getUnifiedType(outG);
-        var r = typeArray([typeConstant('fun'), input, output]);
+        var r = functionType(input, output);
         return r;
     }
     TypeInference.composeFunctions = composeFunctions;
@@ -549,8 +560,8 @@ var TypeInference;
     // Applies a function to input arguments and returns the result 
     function applyFunction(fxn, args) {
         var u = new Unifier();
-        fxn = clone(fxn, 0);
-        args = clone(args, 1);
+        fxn = clone(fxn);
+        args = clone(args);
         var input = functionInput(fxn);
         var output = functionOutput(fxn);
         u.unifyTypes(input, args);

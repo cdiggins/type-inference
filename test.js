@@ -3,38 +3,34 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var type_inference_1 = require("./type_inference");
 var myna_1 = require("./node_modules/myna-parser/myna");
 function registerGrammars() {
+    // This is a more verbose type grammar than the one used in Cat. 
     var typeGrammar = new function () {
         var _this = this;
         this.typeExprRec = myna_1.Myna.delay(function () { return _this.typeExpr; });
         this.typeList = myna_1.Myna.guardedSeq('(', myna_1.Myna.ws, this.typeExprRec.ws.zeroOrMore, ')').ast;
         this.typeVar = myna_1.Myna.guardedSeq("'", myna_1.Myna.identifier).ast;
-        this.typeConstant = myna_1.Myna.identifier.ast;
+        this.typeConstant = myna_1.Myna.identifier.or("->").or("*").ast;
         this.typeExpr = myna_1.Myna.choice(this.typeList, this.typeVar, this.typeConstant).ast;
     };
     myna_1.Myna.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);
 }
 registerGrammars();
 var parser = myna_1.Myna.parsers['type'];
-// Converts a cons list into a flat list of types like Cat prefers
-function consListToString(t) {
-    if (t instanceof type_inference_1.TypeInference.TypeArray)
-        return typeToString(t.types[0]) + " " + consListToString(t.types[1]);
-    else
-        return typeToString(t);
-}
-exports.consListToString = consListToString;
-// Converts a string into a type expression
-function typeToString(t) {
-    if (type_inference_1.TypeInference.isFunctionType(t) && t instanceof type_inference_1.TypeInference.TypeArray) {
+/*
+// Converts a type int a conveneient string representation
+export function typeToString(t:ti.Type) : string {
+    if (ti.isFunctionType(t) && t instanceof ti.TypeArray) {
         return t.typeSchemeToString() + "("
-            + consListToString(type_inference_1.TypeInference.functionInput(t)) + " -> "
-            + consListToString(type_inference_1.TypeInference.functionOutput(t)) + ")";
+            + typeToString(ti.functionInput(t)) + " -> "
+            + typeToString(ti.functionOutput(t)) + ")";
+    }
+    else if (t instanceof ti.TypeArray) {
+        return t.typeSchemeToString() + "(" + t.types.map(typeToString).join(" ") + ")";
     }
     else {
         return t.toString();
     }
-}
-exports.typeToString = typeToString;
+}*/
 function runTest(f, testName, expectFail) {
     if (expectFail === void 0) { expectFail = false; }
     try {
@@ -87,9 +83,14 @@ function testClone(input, fail) {
     if (fail === void 0) { fail = false; }
     runTest(function () {
         var t = stringToType(input);
-        t = type_inference_1.TypeInference.clone(t, 0);
-        t = type_inference_1.TypeInference.clone(t, 1);
-        return t.toString();
+        console.log("Original   : " + t);
+        t = type_inference_1.TypeInference.clone(t);
+        console.log("Cloned     : " + t);
+        t = type_inference_1.TypeInference.generateFreshNames(t, 0);
+        console.log("Fresh vars : " + t);
+        t = type_inference_1.TypeInference.normalizeVarNames(t);
+        console.log("Normalized : " + t);
+        return true;
     }, input, fail);
 }
 function runCloneTests() {
@@ -98,19 +99,24 @@ function runCloneTests() {
     testClone("('a ('b))");
     testClone("('a ('b) ('a))");
     testClone("('a ('b) ('a ('c) ('c 'd)))");
-    testClone("(fun ('a 'b) ('b 'c))");
+    testClone("('a -> 'b)");
+    testClone("(('a *) -> int)");
+    testClone("(('a 'b) -> ('b 'c))");
+    testClone("(('a ('b 'c)) -> ('a 'c))");
+    for (var k in coreTypes)
+        testClone(coreTypes[k]);
 }
 function testParse(input, fail) {
     if (fail === void 0) { fail = false; }
     runTest(function () { return stringToType(input); }, input, fail);
 }
 var coreTypes = {
-    apply: "(fun ((fun 'a 'b) 'a) 'b)",
-    compose: "(fun ((fun 'b 'c) ((fun 'a 'b) 'd)) ((fun ('a 'c) 'd)))",
-    quote: "(fun ('a 'b)  ((fun 'c ('a 'c)) 'b))",
-    dup: "(fun ('a 'b) ('a ('a 'b)))",
-    swap: "(fun ('a ('b 'c)) ('b ('a 'c)))",
-    pop: "(fun ('a 'b) 'b)",
+    apply: "((('a -> 'b) 'a) -> 'b)",
+    compose: "((('b -> 'c) (('a -> 'b) 'd)) -> (('a -> 'c) 'd))",
+    quote: "(('a 'b) -> (('c -> ('a 'c)) 'b))",
+    dup: "(('a 'b) -> ('a ('a 'b)))",
+    swap: "(('a ('b 'c)) -> ('b ('a 'c)))",
+    pop: "(('a 'b) -> 'b)",
 };
 function runParseTests() {
     testParse("abc");
@@ -143,29 +149,17 @@ function testComposition(a, b, fail) {
         console.log("Type B: " + expr2.toString());
         var r = type_inference_1.TypeInference.composeFunctions(expr1, expr2);
         console.log("Composed type: " + r.toString());
-        r = type_inference_1.TypeInference.normalizeVarNames(r);
-        console.log("Normalized type: " + r.toString());
         // Return a prettified version of the function
-        return typeToString(r);
-    }, "Unifying " + a + " with " + b, fail);
+        r = type_inference_1.TypeInference.normalizeVarNames(r);
+        return r.toString();
+    }, "Composing " + a + " with " + b, fail);
 }
 function testUnifyChain(ops) {
     var t1 = coreTypes[ops[0]];
     var t2 = coreTypes[ops[1]];
     testComposition(t1, t2);
 }
-function runUnificationTests() {
-    testComposition("'a", "int");
-    testComposition("int", "'a");
-    testComposition("int", "int");
-    testComposition("('a)", "(int)");
-    testComposition("('a (int 'b))", "(int (int (float string)))");
-    testComposition("'a", "('b int)");
-    testComposition("(fun 'a 'b)", "(fun (int int) float)");
-    testComposition("(fun ('a 'b) 'b)", "(fun (int (int int)) 'c)");
-    testComposition("(fun ('a 'b) 'b)", "(fun (int (int int)) ('c))", true);
-}
-function testAllPairs() {
+function testComposingCoreOps() {
     for (var op1 in coreTypes) {
         for (var op2 in coreTypes) {
             console.log(op1 + " " + op2);
@@ -173,9 +167,18 @@ function testAllPairs() {
         }
     }
 }
-runParseTests();
-runCloneTests();
-runUnificationTests();
-testAllPairs();
+function printCoreTypes() {
+    for (var k in coreTypes) {
+        var ts = coreTypes[k];
+        var t = stringToType(ts);
+        console.log(k);
+        console.log(ts);
+        console.log(t.toString());
+    }
+}
+//runParseTests()
+//runCloneTests();
+//printCoreTypes();
+testComposingCoreOps();
 process.exit();
 //# sourceMappingURL=test.js.map

@@ -131,31 +131,6 @@ export module TypeInference
         [varName:string] : Type;
     }
 
-    // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
-    export function normalizeVarNames(t:Type) : Type {
-        var r = clone(t, 0);
-        var names = {};
-        var count = 0;
-        for (var dt of descendantTypes(r)) 
-        {
-            if (dt instanceof TypeVariable) 
-            {
-                if (!(dt.name in names)) 
-                    dt.name = names[dt.name] = "T" + count++;                
-                else   
-                    dt.name = names[dt.name];
-            }
-        }
-        return r;
-    }
-
-    // Compares whether two types are the same after normalizing the type variables. 
-    export function areTypesSame(t1:Type, t2:Type) {
-        var s1 = normalizeVarNames(t1).toString();
-        var s2 = normalizeVarNames(t2).toString();
-        return s1 === s2;
-    }
-
     // This is helper function helps determine whether a type variable should belong 
     export function _isTypeVarUsedElsewhere(t:TypeArray, varName:string, pos:number) : boolean {
         for (var i=0; i < t.types.length; ++i) 
@@ -356,12 +331,17 @@ export module TypeInference
 
     // Creates a function type, as a special kind of a TypeArray 
     export function functionType(input:Type, output:Type) : TypeArray {
-        return typeArray([typeConstant('fun'), input, output]);    
+        return typeArray([input, typeConstant('->'), output]);    
     }    
 
     // Creates an array type, as a special kind of TypeArray
     export function arrayType(element:Type) : TypeArray {
-        return typeArray([typeConstant('array'), element]);    
+        return typeArray([element, typeConstant('[]')]);    
+    }
+
+    // Creates a list type, as a special kind of TypeArray
+    export function listType(element:Type) : TypeArray {
+        return typeArray([element, typeConstant('*')]);    
     }
 
     // Returns true if and only if the type is a type constant with the specified name
@@ -369,15 +349,20 @@ export module TypeInference
         return t instanceof TypeConstant && t.name === name;
     }
 
+    // Returns true if and only if the type is a type constant with the specified name
+    export function isTypeArray(t:Type, name:string) : boolean {
+        return t instanceof TypeArray && t.types.length == 2 && isTypeConstant(t.types[1], '[]');
+    }
+
     // Returns true iff the type is a TypeArary representing a function type
     export function isFunctionType(t:Type) : boolean {        
-        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[0], 'fun');
+        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[1], '->');
     }
 
     // Returns the input types (argument types) of a TypeArray representing a function type
     export function functionInput(t:Type) : Type {        
         if (!isFunctionType(t)) throw new Error("Expected a function type");
-        return (t as TypeArray).types[1];
+        return (t as TypeArray).types[0];
     }
 
     // Returns the output types (return types) of a TypeArray representing a function type
@@ -412,27 +397,53 @@ export module TypeInference
         return functionType(s, s);
     }
 
-    // Provides new names of vars by adding "$x" to it where x is a new id.
-    // Any previous "$x" is stripped. This modifies 
-    export function cloneTypeList(t:TypeArray, id:number) : TypeArray {
-        var r = typeArray(t.types.map(x => clone(x, id)));
-        for (var v of r.typeVarDeclarations) {
-            var tmp = v.name.indexOf("$");
-            if (tmp > 0) 
-                v.name = v.name.substr(0, tmp);
-            v.name = v.name + "$" + id;
-        }
-        return r;
-    }
-
     // When unifying I will need to use this function.
-    export function clone(t:Type, id:number) : Type {
+    export function clone(t:Type) : Type {
         if (t instanceof TypeVariable)
             return typeVar(t.name);
         else if (t instanceof TypeConstant)
             return typeConstant(t.name);
         else if (t instanceof TypeArray)
-            return cloneTypeList(t, id);
+            return typeArray(t.types.map(clone));
+    }
+
+    //========================================================
+    // Variable name functions
+
+    // Renames all variables with the new
+    export function renameVars(t:Type, names:any) : Type {
+        var r = clone(t);
+        for (var v of descendantTypes(r))
+            if (v instanceof TypeVariable) 
+                v.name = names[v.name];
+        return r;
+    }
+    
+    // Generates fresh variable names for all the variables in the list
+    export function generateFreshNames(t:Type, id:number) {
+        var names = {};
+        for (var v of descendantTypes(t))
+            if (v instanceof TypeVariable) 
+                names[v.name] = v.name + "$" + id;
+        return renameVars(t, names);
+    }
+
+    // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
+    export function normalizeVarNames(t:Type) : Type {
+        var names = {};
+        var count = 0;
+        for (var dt of descendantTypes(t)) 
+            if (dt instanceof TypeVariable) 
+                if (!(dt.name in names))
+                    names[dt.name] = "t" + count++;                
+        return renameVars(t, names);
+    }
+
+    // Compares whether two types are the same after normalizing the type variables. 
+    export function areTypesSame(t1:Type, t2:Type) {
+        var s1 = normalizeVarNames(t1).toString();
+        var s2 = normalizeVarNames(t2).toString();
+        return s1 === s2;
     }
 
     //==========================================================================================
@@ -531,8 +542,8 @@ export module TypeInference
         if (!isFunctionType(f)) throw new Error("Expected a function type for f");
         if (!isFunctionType(g)) throw new Error("Expected a function type for g");
         
-        f = clone(f, 0) as TypeArray;
-        g = clone(g, 1) as TypeArray;
+        f = generateFreshNames(f, 0) as TypeArray;
+        g = generateFreshNames(g, 1) as TypeArray;
 
         if (trace) {
             console.log("f: " + f);
@@ -549,8 +560,7 @@ export module TypeInference
         var input = e.getUnifiedType(inF);
         var output = e.getUnifiedType(outG);
 
-        var r = typeArray([typeConstant('fun'), input, output]);    
-
+        var r = functionType(input, output);
         return r;        
     }
 
@@ -567,8 +577,8 @@ export module TypeInference
     // Applies a function to input arguments and returns the result 
     export function applyFunction(fxn:TypeArray, args:TypeArray) : TypeArray {
         var u = new Unifier();
-        fxn = clone(fxn, 0) as TypeArray;
-        args = clone(args, 1) as TypeArray;
+        fxn = clone(fxn) as TypeArray;
+        args = clone(args) as TypeArray;
         var input = functionInput(fxn);
         var output = functionOutput(fxn);    
         u.unifyTypes(input, args);
