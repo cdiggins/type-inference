@@ -2,7 +2,7 @@
 
 This is a simple and easy to use type inference algorithm written in TypeScript that supports polymorphic types. 
 
-The algorithm is different than Damas-Hindley-Milner type inference (aka Algorithm W) as it can infer higher-order types.
+The algorithm is different than Damas-Milner type inference (aka Algorithm W) as it can infer higher-order types.
 
 >>> I have merely tested and validated that the code works, I have not proven that it is correct. 
 
@@ -298,4 +298,189 @@ What I am saying is that if the unifier has a type variable, then the type shoul
 Just keep generating fresh variables. And unify as much as possible at each step. 
 
 Whenever a TypeVariable unifier gets a TypeArray I should replace all instances of that TypeVars in all TypeArrays with the unified version. 
+
+//==
+
+Okay, so now I have a type scheme. 
+
+TODO: explain what A type scheme is. 
+
+//==
+
+What happens when I try to unify a nested type twice? Say for example:
+
+!a.(a -> !b.(a -> b)) <=> !c.(int -> c c) ?
+
+This is illegal: You can't just start plucking type variables out of thin air on the right hand side. They have to occur 
+on the left first. Don't they?
+
+So: that is a very interesting restriction that could be useful for some proofs. 
+
+So then what about: 
+
+!a.(a !b.(a -> b) -> int) <=> !c.(int c -> int)?
+
+Now in this case . . . 
+
+Again not a problem really? 
+
+Remember: I can't compose, except with the results. 
+
+(A -> B) (C -> D)
+
+Implies B <=> C.
+
+Interesting BECAUSE it is subject to rules that new type schemes never appear in B? 
+
+(A -> B) is an illegal function. 
+(A -> (A -> B)) is also an illegal function. 
+
+((A -> B) -> (A -> B)) is however legal, notice because the Type schemes don't appear. 
+
+Can I prove that this never happens? Well I can test that this never happens in a language like Cat. 
+
+//==
+
+So what I am trying to say is that polytypes are never generated. 
+
+What is important to note about this type system is that it has something special to say about functions. 
+That is fine. It can probably be dealt with outside of the "type_inference" side? 
+
+//==
+
+# System F is Undecidable
+
+Man polymorphic type systems are based  of System F. It has been proven that type checking, and consequently
+type inference/reconstruction, is undecidable for System F. There are two restricted forms of System F which are known to be decidable for type-innference:
+
+1) Rank-1 Prenex polymorphism
+2) Rank-2 polymorphism 
+
+There are 
+
+There is a rule that top-level function types cannot generate new polymorphic types
+
+https://en.wikipedia.org/wiki/Parametric_polymorphism
+https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system 
+https://en.wikipedia.org/wiki/System_F
+
+# Reconstructing the Type Scehemes 
+
+This type system uses an algorithm to compute polytypes without type annotations based on a rule: assuming all type variables are uniqely named, a type variable belongs to the type scheme of the most recent polytype, that references all instances of the type variable. 
+
+This is based on the intuition that: 
+
+(a (b a) -> int)
+
+# Motivations 
+
+Given a stack language we want to be able to express the type of: 
+
+```
+  [dup] dup 
+```
+
+So for example: 
+
+```
+  3 "hello" [dup] dup dip2 apply => 3 3 "hello" "hello"
+```
+
+Here is the result of applying the function step by step: 
+
+```
+  3 
+  3 "hello" 
+  3 "hello" [dup] 
+  3 "hello" [dup] [dup] 
+  3 3 "hello" [dup] 
+  3 3 "hello" "hello" 
+```
+
+We don't want to 
+
+# The Core Type System
+
+I believe all other rules can be defined from these: 
+
+apply : !a!b.((a -> b) a -> b) 
+compose : !a!b!c!d.((b -> c) (a -> b) d -> (a -> c) d)
+quote : !a!b.(a b -> !c.(c -> a c) b)
+dup : !a!b.(a b -> a (a b))
+swap : !a!b!c.(a (b c) -> b (a c))
+
+# A Higher Rank Type Inference Algorithm
+
+This document describes a type inference (type reconstruction) algorithm for higher-rank polymorphism 
+Constructing a type system for a functional stack language without user defined type annotations that supports polrymorph
+
+The proposed type system is more powerful than a rank-1 (prenex) polymorphic type system: it allows polytypes as first class citizens (e.g. arguments to functions and as function results). 
+
+We introduce a restriction compared to impredicative type systems: top-level functions that generate polymorphic functions that generate polytypes are illegal. (Really???)
+
+Viewed as a tree: no right most derivation of the   ... 
+
+//==
+
+I'm not sure about this restriction. 
+
+Sounds to me like I am defining a kind of rank-2 polymorphism.
+
+# Discussion on Higher Rank Polymorphism
+
+https://softwareengineering.stackexchange.com/questions/277048/is-higher-rank-parametric-polymorphism-useful/277069#277069 - In general, you use higher-rank polymorphism when you want the callee to be able to select the value of a type parameter, rather than the calle
+
+https://github.com/elm-lang/elm-compiler/issues/238
+
+https://prime.haskell.org/wiki/Rank2Types - 
+
+
+https://stackoverflow.com/questions/12031878/what-is-the-purpose-of-rank2types - 
+https://apocalisp.wordpress.com/2010/07/02/higher-rank-polymorphism-in-scala/ - 
+
+The definitive paper: http://research.microsoft.com/Users/simonpj/papers/higher-rank/
+
+
+//== 
+
+TODO:
+1. Test the type renaming. 
+2. Test the type cloning.
+
+//==
+
+Two things to notice:
+
+1) Swap swap is not unifying correctly.
+2) I am getting a lot of "different sized lists can't be unified". This is bogus.
+
+For example "swap quote"
+
+Right now: 
+pop pop -> generating a "single type".
+
+# Encoding the SKI Calculus in a Concatenative Language
+
+In a concatenative language function application is not implied: each combinator just puts a quotation on the stack. Applying the combinator to the stack is an explicit operation specified using A. 
+
+1. y x K A A => x
+2. z y x S A A A => z y A z x A A
+3. x I A => x
+4. x K K S A A A => x K A x K A A == y I
+
+K = [quote [pop] rcompose] 
+S = ??
+I = [quote]
+
+## Proving that the definition of SKK is equivalent to I 
+
+// x K A x K A A 
+
+x 
+[pop x] x
+[pop x] [pop x]
+x
+
+## Term Rewriting 
+
 

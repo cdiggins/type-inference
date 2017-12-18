@@ -1,7 +1,7 @@
 "use strict";
 // A Type Inference Algorithm by Christopher Digginss  
 // This a novel type inference algorithm not Hindley Milner Type inference aka Algorithm W. 
-// It provides support for higher rank polymorphism and row polymorphism.
+// It provides support for full inference of higher rank type inference and row polymorphism.
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
@@ -15,7 +15,7 @@ var __extends = (this && this.__extends) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
-// The one and only super module
+// The one and only module
 var TypeInference;
 (function (TypeInference) {
     // Turn on for debugging purposes
@@ -23,44 +23,62 @@ var TypeInference;
     // Base class of a type: either a TypeArray, TypeVariable, or TypeConstant
     var Type = (function () {
         function Type() {
+            // All type varible referenced somewhere by the type, or the type itself if it is a TypeVariable.
+            this.typeVars = [];
         }
-        Object.defineProperty(Type.prototype, "descendantTypes", {
-            get: function () {
-                return [];
-            },
-            enumerable: true,
-            configurable: true
-        });
         return Type;
     }());
     TypeInference.Type = Type;
-    // A list of types can be used to represent function types or tuple types. 
-    // This is called a PolyType since it may contain variables with an implicit for-all qualifier.    
+    // A collection of a fixed number of types can be used to represent function types or tuple types. 
+    // A list of types is usually encoded as a nested set of type pairs (TypeArrays with two elements).
+    // If a TypeArray declares variables with an implicit for-all qualifier, it is considered a "PolyType". 
+    // The variables which are part of the TypeArray 
+    // All variables are assumed to be uniquely named. When constructed the TypeArray 
+    // will compute which type variables need to be lifted to it's "TypeScheme".
     var TypeArray = (function (_super) {
         __extends(TypeArray, _super);
         function TypeArray(types) {
             var _this = _super.call(this) || this;
             _this.types = types;
-            // The type variables belonging to this TypeArray. This has to be computed separately.
-            _this.typeScheme = [];
+            // The type variables that are bound to this TypeArray. 
+            // Always a subset of typeVars
+            _this.typeVarDeclarations = [];
+            // Compute all referenced types 
+            for (var _i = 0, types_1 = types; _i < types_1.length; _i++) {
+                var t = types_1[_i];
+                _this.typeVars = _this.typeVars.concat(t.typeVars);
+            }
+            // Assign all correct type variables to this type scheme
+            for (var i = 0; i < types.length; ++i) {
+                var child = types[i];
+                // Individual type variables are part of this scheme 
+                if (child instanceof TypeVariable)
+                    _reassignAllVarsToScheme(child.name, _this);
+                else if (child instanceof TypeArray) {
+                    // Get the vars of the child type. 
+                    // If any of them show up in multiple child arrays, then they 
+                    // are part of the parent's child 
+                    for (var _a = 0, _b = child.typeVars; _a < _b.length; _a++) {
+                        var childVar = _b[_a];
+                        if (_isTypeVarUsedElsewhere(_this, childVar.name, i))
+                            _reassignAllVarsToScheme(childVar.name, _this);
+                    }
+                }
+            }
+            // Implementation validation step:
+            // Assure that the type scheme variables are all in the typeVars 
+            for (var _c = 0, _d = _this.typeVarDeclarations; _c < _d.length; _c++) {
+                var v = _d[_c];
+                var i = _this.typeVars.indexOf(v);
+                if (i < 0)
+                    throw new Error("Internal error: type scheme references a variable that is not marked as referenced by the type variable");
+            }
             return _this;
         }
-        Object.defineProperty(TypeArray.prototype, "descendantTypes", {
-            // Get all descendant types 
-            get: function () {
-                var r = this.types.slice();
-                for (var _i = 0, _a = this.types; _i < _a.length; _i++) {
-                    var t = _a[_i];
-                    r = r.concat(t.descendantTypes);
-                }
-                return r;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        // Provides a user friendly representation of the type scheme 
         TypeArray.prototype.typeSchemeToString = function () {
             var tmp = {};
-            for (var _i = 0, _a = this.typeScheme; _i < _a.length; _i++) {
+            for (var _i = 0, _a = this.typeVarDeclarations; _i < _a.length; _i++) {
                 var v = _a[_i];
                 tmp[v.name] = true;
             }
@@ -83,10 +101,11 @@ var TypeInference;
         function TypeVariable(name) {
             var _this = _super.call(this) || this;
             _this.name = name;
+            _this.typeVars.push(_this);
             return _this;
         }
         TypeVariable.prototype.toString = function () {
-            return "'" + this.name;
+            return this.name;
         };
         return TypeVariable;
     }(Type));
@@ -114,80 +133,53 @@ var TypeInference;
         return TypeUnifier;
     }());
     TypeInference.TypeUnifier = TypeUnifier;
+    // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
+    function normalizeVarNames(t) {
+        var r = clone(t, 0);
+        var names = {};
+        var count = 0;
+        for (var _i = 0, _a = descendantTypes(r); _i < _a.length; _i++) {
+            var dt = _a[_i];
+            if (dt instanceof TypeVariable) {
+                if (!(dt.name in names))
+                    dt.name = names[dt.name] = "T" + count++;
+                else
+                    dt.name = names[dt.name];
+            }
+        }
+        return r;
+    }
+    TypeInference.normalizeVarNames = normalizeVarNames;
     // Compares whether two types are the same after normalizing the type variables. 
     function areTypesSame(t1, t2) {
-        // TODO: re-implement normalization
-        var s1 = t1.toString();
-        var s2 = t2.toString();
+        var s1 = normalizeVarNames(t1).toString();
+        var s2 = normalizeVarNames(t2).toString();
         return s1 === s2;
     }
     TypeInference.areTypesSame = areTypesSame;
-    // Returns all type variables contained in a given type
-    function getVars(t, r) {
-        if (r === void 0) { r = []; }
-        if (t instanceof TypeVariable)
-            r.push(t);
-        else if (t instanceof TypeArray)
-            for (var _i = 0, _a = t.types; _i < _a.length; _i++) {
-                var t2 = _a[_i];
-                getVars(t2, r);
-            }
-        return r;
-    }
-    TypeInference.getVars = getVars;
     // This is helper function helps determine whether a type variable should belong 
-    function isTypeVarUsedElsewhere(t, varName, pos) {
+    function _isTypeVarUsedElsewhere(t, varName, pos) {
         for (var i = 0; i < t.types.length; ++i)
-            if (i != pos && getVars(t.types[i]).filter(function (v) { return v.name == varName; }).length > 0)
+            if (i != pos && t.types[i].typeVars.some(function (v) { return v.name == varName; }))
                 return true;
         return false;
     }
-    TypeInference.isTypeVarUsedElsewhere = isTypeVarUsedElsewhere;
+    TypeInference._isTypeVarUsedElsewhere = _isTypeVarUsedElsewhere;
     // Associate the variable with a new type scheme. Removing it from the previous varScheme 
-    function reassignVarScheme(v, t) {
+    function _reassignVarScheme(v, t) {
         // Remove the variable from the previous scheme 
         if (v.scheme != undefined)
-            v.scheme.typeScheme = v.scheme.typeScheme.filter(function (t) { return t.name != v.name; });
+            v.scheme.typeVarDeclarations = v.scheme.typeVarDeclarations.filter(function (t) { return t.name != v.name; });
         // Set the new scheme 
         v.scheme = t;
-        t.typeScheme.push(v);
+        t.typeVarDeclarations.push(v);
     }
-    TypeInference.reassignVarScheme = reassignVarScheme;
+    TypeInference._reassignVarScheme = _reassignVarScheme;
     // Associate all variables of the given name in the TypeArray with the TypeArray's scheme
-    function reassignAllVarsToScheme(varName, t) {
-        getVars(t).filter(function (v) { return v.name == varName; }).forEach(function (v) { return reassignVarScheme(v, t); });
+    function _reassignAllVarsToScheme(varName, t) {
+        t.typeVars.filter(function (v) { return v.name == varName; }).forEach(function (v) { return _reassignVarScheme(v, t); });
     }
-    TypeInference.reassignAllVarsToScheme = reassignAllVarsToScheme;
-    // Assigns each type variable to a scheme based on it appearing in a type array, 
-    // and no other enclosing type array. 
-    // TODO: this is a naive algorithm. I believe the complexity is quadratic or worse. 
-    function computeSchemes(t) {
-        if (t instanceof TypeArray) {
-            // Recursively compute schemas
-            for (var _i = 0, _a = t.types; _i < _a.length; _i++) {
-                var t2 = _a[_i];
-                computeSchemes(t2);
-            }
-            // Check each child type.
-            for (var i = 0; i < t.types.length; ++i) {
-                var child = t.types[i];
-                // Individual type variables are part of this scheme 
-                if (child instanceof TypeVariable)
-                    reassignAllVarsToScheme(child.name, t);
-                else if (child instanceof TypeArray) {
-                    // Get the vars of the child type. 
-                    // If any of them show up in multiple child arrays, then they 
-                    // are part of the parent's child 
-                    for (var _b = 0, _c = getVars(child); _b < _c.length; _b++) {
-                        var childVar = _c[_b];
-                        if (isTypeVarUsedElsewhere(t, childVar.name, i))
-                            reassignAllVarsToScheme(childVar.name, t);
-                    }
-                }
-            }
-        }
-    }
-    TypeInference.computeSchemes = computeSchemes;
+    TypeInference._reassignAllVarsToScheme = _reassignAllVarsToScheme;
     // Use this class to unify types that are constrained together.
     var Unifier = (function () {
         function Unifier() {
@@ -351,7 +343,7 @@ var TypeInference;
     TypeInference.typeVar = typeVar;
     // Creates a function type, as a special kind of a TypeArray 
     function functionType(input, output) {
-        return typeArray([typeConstant('function'), input, output]);
+        return typeArray([typeConstant('fun'), input, output]);
     }
     TypeInference.functionType = functionType;
     // Creates an array type, as a special kind of TypeArray
@@ -364,9 +356,9 @@ var TypeInference;
         return t instanceof TypeConstant && t.name === name;
     }
     TypeInference.isTypeConstant = isTypeConstant;
-    // Returns true if the type is a TypeArary representing a function type
+    // Returns true iff the type is a TypeArary representing a function type
     function isFunctionType(t) {
-        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[0], 'function');
+        return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[0], 'fun');
     }
     TypeInference.isFunctionType = isFunctionType;
     // Returns the input types (argument types) of a TypeArray representing a function type
@@ -383,48 +375,57 @@ var TypeInference;
         return t.types[2];
     }
     TypeInference.functionOutput = functionOutput;
-    // Returns the function type that results by composing two function types
-    function composeFunctions(f, g) {
-        if (!isFunctionType(f))
-            throw new Error("Expected a function type for f");
-        if (!isFunctionType(g))
-            throw new Error("Expected a function type for g");
-        var inF = functionInput(f);
-        var outF = functionInput(f);
-        var inG = functionInput(g);
-        var outG = functionOutput(g);
-        var e = new Unifier();
-        e.unifyTypes(outF, inG);
-        var input = e.getUnifiedType(inF);
-        var output = e.getUnifiedType(outG);
-        return new TypeArray([typeConstant('function'), input, output]);
+    // Returns all types contained in this type
+    function descendantTypes(t, r) {
+        if (r === void 0) { r = []; }
+        r.push(t);
+        if (t instanceof TypeArray)
+            t.types.forEach(function (t2) { return descendantTypes(t2, r); });
+        return r;
     }
-    TypeInference.composeFunctions = composeFunctions;
+    TypeInference.descendantTypes = descendantTypes;
+    // Returns true if the type is a polytype
+    function isPolyType(t) {
+        return t instanceof TypeArray && t.typeVarDeclarations.length > 0;
+    }
+    TypeInference.isPolyType = isPolyType;
+    // Returns true if the type is a function that generates a polytype.
+    function generatesPolytypes(t) {
+        if (!isFunctionType(t))
+            return false;
+        return descendantTypes(functionOutput(t)).some(isPolyType);
+    }
+    TypeInference.generatesPolytypes = generatesPolytypes;
     // Returns the type of the id function 
     function idFunction() {
         var s = typeVar('_');
         return functionType(s, s);
     }
     TypeInference.idFunction = idFunction;
-    // Composes a chain of functions
-    function composeFunctionChain(fxns) {
-        if (fxns.length == 0)
-            return idFunction();
-        var t = fxns[0];
-        for (var i = 0; i < fxns.length; ++i)
-            t = composeFunctions(t, fxns[i]);
-        return t;
+    // Provides new names of vars by adding "$x" to it where x is a new id.
+    // Any previous "$x" is stripped. This modifies 
+    function cloneTypeList(t, id) {
+        var r = typeArray(t.types.map(function (x) { return clone(x, id); }));
+        for (var _i = 0, _a = r.typeVarDeclarations; _i < _a.length; _i++) {
+            var v = _a[_i];
+            var tmp = v.name.indexOf("$");
+            if (tmp > 0)
+                v.name = v.name.substr(0, tmp);
+            v.name = v.name + "$" + id;
+        }
+        return r;
     }
-    TypeInference.composeFunctionChain = composeFunctionChain;
-    // Applies a function to input arguments and returns the result 
-    function applyFunction(fxn, args) {
-        var u = new Unifier();
-        var input = functionInput(fxn);
-        var output = functionOutput(fxn);
-        u.unifyTypes(input, args);
-        return u.getUnifiedType(output);
+    TypeInference.cloneTypeList = cloneTypeList;
+    // When unifying I will need to use this function.
+    function clone(t, id) {
+        if (t instanceof TypeVariable)
+            return typeVar(t.name);
+        else if (t instanceof TypeConstant)
+            return typeConstant(t.name);
+        else if (t instanceof TypeArray)
+            return cloneTypeList(t, id);
     }
-    TypeInference.applyFunction = applyFunction;
+    TypeInference.clone = clone;
     //==========================================================================================
     // Type Environments 
     // 
@@ -506,5 +507,61 @@ var TypeInference;
         return TypeEnv;
     }());
     TypeInference.TypeEnv = TypeEnv;
+    //============================================================
+    // Top level type operations which require unification 
+    // - Composition
+    // - Application
+    // - Quotation
+    // Returns the function type that results by composing two function types
+    function composeFunctions(f, g) {
+        if (!isFunctionType(f))
+            throw new Error("Expected a function type for f");
+        if (!isFunctionType(g))
+            throw new Error("Expected a function type for g");
+        f = clone(f, 0);
+        g = clone(g, 1);
+        if (TypeInference.trace) {
+            console.log("f: " + f);
+            console.log("g: " + g);
+        }
+        var inF = functionInput(f);
+        var outF = functionOutput(f);
+        var inG = functionInput(g);
+        var outG = functionOutput(g);
+        var e = new Unifier();
+        e.unifyTypes(outF, inG);
+        var input = e.getUnifiedType(inF);
+        var output = e.getUnifiedType(outG);
+        var r = typeArray([typeConstant('fun'), input, output]);
+        return r;
+    }
+    TypeInference.composeFunctions = composeFunctions;
+    // Composes a chain of functions
+    function composeFunctionChain(fxns) {
+        if (fxns.length == 0)
+            return idFunction();
+        var t = fxns[0];
+        for (var i = 0; i < fxns.length; ++i)
+            t = composeFunctions(t, fxns[i]);
+        return t;
+    }
+    TypeInference.composeFunctionChain = composeFunctionChain;
+    // Applies a function to input arguments and returns the result 
+    function applyFunction(fxn, args) {
+        var u = new Unifier();
+        fxn = clone(fxn, 0);
+        args = clone(args, 1);
+        var input = functionInput(fxn);
+        var output = functionOutput(fxn);
+        u.unifyTypes(input, args);
+        return u.getUnifiedType(output);
+    }
+    TypeInference.applyFunction = applyFunction;
+    // Creates a function type that generates the given type 
+    function quotation(x) {
+        var row = typeVar('_');
+        return functionType(row, typeArray([x, row]));
+    }
+    TypeInference.quotation = quotation;
 })(TypeInference = exports.TypeInference || (exports.TypeInference = {}));
 //# sourceMappingURL=type_inference.js.map

@@ -20,6 +20,26 @@ registerGrammars();
 
 var parser = m.parsers['type'];
 
+// Converts a cons list into a flat list of types like Cat prefers
+export function consListToString(t:ti.Type) : string {
+    if (t instanceof ti.TypeArray)
+        return typeToString(t.types[0]) + " " + consListToString(t.types[1]);
+    else 
+        return typeToString(t);
+}
+
+// Converts a string into a type expression
+export function typeToString(t:ti.Type) : string {
+    if (ti.isFunctionType(t) && t instanceof ti.TypeArray) {
+        return t.typeSchemeToString() + "(" 
+            + consListToString(ti.functionInput(t)) + " -> " 
+            + consListToString(ti.functionOutput(t)) + ")";
+    }
+    else {
+        return t.toString();
+    }
+}
+
 function runTest(f:() => any, testName:string, expectFail:boolean = false) {
     try {
         console.log("Running test: " + testName);
@@ -67,168 +87,119 @@ export function astToType(ast:m.AstNode) : ti.Type {
         default: 
             throw new Error("Unrecognized type expression: " + ast.name);
     }
-}
+}  
 
-function testComputeSchemas(input:string, fail:boolean=false) {
+function testClone(input:string, fail:boolean=false) {
     runTest(() => {
         var t = stringToType(input);
-        ti.computeSchemes(t);
+        t = ti.clone(t, 0);
+        t = ti.clone(t, 1);
         return t.toString();
     }, input, fail);
 }
 
-function runSchemaTests() 
+function runCloneTests() 
 {
-    testComputeSchemas("('a)");
-    testComputeSchemas("('a 'b)");
-    testComputeSchemas("('a ('b))");
-    testComputeSchemas("('a ('b) ('a))");
-    testComputeSchemas("('a ('b) ('a ('c) ('c 'd)))");
-    testComputeSchemas("(function ('a 'b) ('b 'c))");
+    testClone("('a)");
+    testClone("('a 'b)");
+    testClone("('a ('b))");
+    testClone("('a ('b) ('a))");
+    testClone("('a ('b) ('a ('c) ('c 'd)))");
+    testClone("(fun ('a 'b) ('b 'c))");
 }
-
-runSchemaTests();
 
 function testParse(input:string, fail:boolean=false)
 {
     runTest(() => stringToType(input), input, fail);
 }
 
+var coreTypes = {
+    apply: "(fun ((fun 'a 'b) 'a) 'b)",
+    compose : "(fun ((fun 'b 'c) ((fun 'a 'b) 'd)) ((fun ('a 'c) 'd)))",
+    quote : "(fun ('a 'b)  ((fun 'c ('a 'c)) 'b))",
+    dup : "(fun ('a 'b) ('a ('a 'b)))",
+    swap : "(fun ('a ('b 'c)) ('b ('a 'c)))",
+    pop : "(fun ('a 'b) 'b)",
+};
+  
 function runParseTests()
 {
     testParse("abc");
     testParse("'abc");
     testParse("()");
+
     testParse("( )");
     testParse("(a)");
     testParse("('a)");
     testParse("(array int)");
     testParse("(array 't)");
-    testParse("(function int 't ())");
-    testParse("(function int float)");
+    testParse("(fun int 't ())");
+    testParse("(fun int float)");
     testParse("(()())");
-    testParse("(function (int (int 'a)) (float (float 'a)))");
+    testParse("(fun (int (int 'a)) (float (float 'a)))");
     testParse("(()()", true);
     testParse("()()", true);
     testParse("()())", true);
     testParse("(a b", true);
     testParse("a b", true);
     testParse("a b)", true);
+
+    for (var k in coreTypes) 
+        testParse(coreTypes[k])
 }
 
-// runParseTests()
-
-function testUnification(a:string, b:string, fail:boolean = false)
+function testComposition(a:string, b:string, fail:boolean = false)
 {
-    runTest( () => {
-        var engine = new ti.Unifier();
-        
+    runTest( () => {        
         var expr1 = stringToType(a);
-        ti.computeSchemes(expr1);
-        console.log(expr1.toString());
+        console.log("Type A: " + expr1.toString());
         
         var expr2 = stringToType(b);
-        ti.computeSchemes(expr2);
-        console.log(expr2.toString());
+        console.log("Type B: " + expr2.toString());
 
-        engine.unifyTypes(expr1, expr2);
-        return "success";
+        var r = ti.composeFunctions(expr1 as ti.TypeArray, expr2 as ti.TypeArray);
+        console.log("Composed type: " + r.toString())
+
+        r = ti.normalizeVarNames(r) as ti.TypeArray;
+        console.log("Normalized type: " + r.toString());
+        
+        // Return a prettified version of the function
+        return typeToString(r);
     }, "Unifying " + a + " with " + b, fail);
+}
+
+function testUnifyChain(ops:string[]) {
+    var t1 = coreTypes[ops[0]];
+    var t2 = coreTypes[ops[1]];
+    testComposition(t1, t2);
 }
 
 function runUnificationTests() 
 {
-    testUnification("'a", "int");
-    testUnification("int", "'a");
-    testUnification("int", "int");
-    testUnification("('a)", "(int)");
-    testUnification("('a (int 'b))", "(int (int (float string)))");
-    testUnification("'a", "('b int)");
-    testUnification("(function 'a 'b)", "(function (int int) float)");
-    testUnification("(function ('a 'b) 'b)", "(function (int (int int)) 'c)");
-    testUnification("(function ('a 'b) 'b)", "(function (int (int int)) ('c))", true);
+    testComposition("'a", "int");
+    testComposition("int", "'a");
+    testComposition("int", "int");
+    testComposition("('a)", "(int)");
+    testComposition("('a (int 'b))", "(int (int (float string)))");
+    testComposition("'a", "('b int)");
+    testComposition("(fun 'a 'b)", "(fun (int int) float)");
+    testComposition("(fun ('a 'b) 'b)", "(fun (int (int int)) 'c)");
+    testComposition("(fun ('a 'b) 'b)", "(fun (int (int int)) ('c))", true);
 }
 
-//runUnificationTests();
-
-/*
-function testUnification(a:string, b:string, fail:boolean = false)
-{
-    runTest( () => {
-        var engine = new ti.Unifier();
-        var expr1 = stringToType(a);
-        var expr2 = stringToType(b);
-        engine.unifyTypes(expr1, expr2);
-        return "success";
-    }, "Unifying " + a + " with " + b, fail);
-}
-*/
-
-/*
-{
-    console.log("Constraint Tests");
-
-    {
-        console.log("");
-        console.log("## Test A");
-        var i = new ti.Unifier();
-        var f = ti.functionType(["'x"], ["['x 'x 'x]"]);        
-        var inputs = ti.functionInput(f);
-        te.addTypeConstraint(t0, t1);
-        te.resolve();
-        te.logState();
-    }
-    
-    {
-        console.log("");
-        console.log("## Test B");
-        var te = new ti.Engine();
-        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new ti.TypeVariable('U'));
-        var t2 = te.addVarConstraint('z', new ti.TypeConstant('int'));
-        te.addTypeConstraint(t0, t1);
-        te.addTypeConstraint(t1, t2);
-        te.resolve();
-        te.logState();
-    }
-    {
-        console.log("");
-        console.log("## Test C");
-        var te = new ti.Engine();
-        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeConstant('int'), new ti.TypeVariable('U')]));
-        var t2 = te.addVarConstraint('z', new ti.TypeArray([new ti.TypeVariable('V'), new ti.TypeConstant('float')]));
-        var t3 = te.addVarConstraint('r', new ti.TypeArray([new ti.TypeVariable('U'), new ti.TypeVariable('V')]));
-        te.addTypeConstraint(t0, t1);
-        te.addTypeConstraint(t0, t2);
-        te.addReturnStatement(t3, null);
-        te.resolve();
-        te.logState();
-    }
-
-    {
-        console.log("");
-        console.log("## Test Recursion");
-        var te = new ti.Engine();
-        var t0 = te.addVarConstraint('x', new ti.TypeVariable('T'));
-        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeVariable('T'), new ti.TypeConstant('float')]));
-        te.addTypeConstraint(t0, t1);
-        te.resolve();
-        te.logState();
-    }
-
-    {
-        console.log("");
-        console.log("## Test Row Variables");
-        var te = new ti.Engine();
-        var t0 = te.addVarConstraint('x', new ti.TypeArray([new ti.TypeVariable('T'), new ti.TypeVariable('U')]));
-        var t1 = te.addVarConstraint('y', new ti.TypeArray([new ti.TypeConstant('int'), new ti.TypeConstant('float'), new ti.TypeConstant('float')]));
-        te.addTypeConstraint(t0, t1);
-        te.resolve();
-        te.logState();
+function testAllPairs() {
+    for (var op1 in coreTypes) {
+        for (var op2 in coreTypes) {
+            console.log(op1 + " " + op2);
+            testComposition(coreTypes[op1], coreTypes[op2]);
+        }
     }
 }
-*/
+
+runParseTests()
+runCloneTests();
+runUnificationTests();
+testAllPairs();
 
 declare var process : any;
 process.exit();
