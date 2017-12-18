@@ -28,10 +28,8 @@ export module TypeInference
             super(); 
         }
 
-        // Get the type variables belonging to this TypeArray 
-        get typeScheme() : TypeVariable[] {
-            return getVars(this).filter(v => v.scheme == this);
-        }
+        // The type variables belonging to this TypeArray. This has to be computed separately.
+        typeScheme : TypeVariable[] = [];
 
         // Get all descendant types 
         get descendantTypes() : Type[] {
@@ -42,11 +40,18 @@ export module TypeInference
             return r;
         }
 
+        typeSchemeToString() {
+            var tmp = {};
+            for (var v of this.typeScheme)
+                tmp[v.name] = true;
+            var r = Object.keys(tmp);
+            if (r.length == 0)
+                return "";
+            return "!" + r.join("!") + ".";            
+        }
+
         toString() : string { 
-            var ts = this.typeScheme.join("!");
-            if (ts.length > 0)
-                ts = "!" + ts + ".";
-            return ts + "(" + this.types.join(' ') + ")"; 
+            return this.typeSchemeToString() + "(" + this.types.join(' ') + ")"; 
         }
     }
 
@@ -61,8 +66,7 @@ export module TypeInference
             super(); 
         }
         
-        // The type array which contains the definition for this type variable
-        scheme : TypeArray = null;
+        scheme : TypeArray;
 
         toString() : string { 
             return "'" + this.name;
@@ -102,7 +106,7 @@ export module TypeInference
 
     // Compares whether two types are the same after normalizing the type variables. 
     export function areTypesSame(t1:Type, t2:Type) {
-        // TODO: implement normalize
+        // TODO: re-implement normalization
         var s1 = t1.toString();
         var s2 = t2.toString();
         return s1 === s2;
@@ -120,33 +124,51 @@ export module TypeInference
 
     // This is helper function helps determine whether a type variable should belong 
     export function isTypeVarUsedElsewhere(t:TypeArray, varName:string, pos:number) : boolean {
-        for (var i=0; i < t.types.length; ++i) {
-            if (i != pos) {
-                var tmp = getVars(t.types[0]);
-                if (varName in tmp) 
-                    return true;
-            }
-        }
+        for (var i=0; i < t.types.length; ++i) 
+            if (i != pos && getVars(t.types[i]).filter(v => v.name == varName).length > 0)
+                return true;
         return false;
     }
 
+    // Associate the variable with a new type scheme. Removing it from the previous varScheme 
+    export function reassignVarScheme(v:TypeVariable, t:TypeArray) {
+        // Remove the variable from the previous scheme 
+        if (v.scheme != undefined) 
+            v.scheme.typeScheme = v.scheme.typeScheme.filter(t => t.name != v.name);
+        // Set the new scheme 
+        v.scheme = t;
+        t.typeScheme.push(v);
+    }
+        
+    // Associate all variables of the given name in the TypeArray with the TypeArray's scheme
+    export function reassignAllVarsToScheme(varName:string, t:TypeArray) {
+        getVars(t).filter(v => v.name == varName).forEach(v => reassignVarScheme(v, t));
+    }
+
     // Assigns each type variable to a scheme based on it appearing in a type array, 
-    // and no other enclosing type array. This is a naive algorithm.
+    // and no other enclosing type array. 
+    // TODO: this is a naive algorithm. I believe the complexity is quadratic or worse. 
     export function computeSchemes(t:Type) {
         if (t instanceof TypeArray) {            
             // Recursively compute schemas
             for (var t2 of t.types)
                 computeSchemes(t2);
             
-            for (var v of getVars(t))
-                if (v.scheme == null)
-                    v.scheme = t;
+            // Check each child type.
+            for (var i=0; i < t.types.length; ++i) {
+                var child = t.types[i];
 
-            for (var i=0; i < t.types.length-1; ++i) {
-                var vars = getVars(t.types[i]);
-                for (var v of vars) {
-                    if (isTypeVarUsedElsewhere(t, v.name, i))
-                        v.scheme = t;
+                // Individual type variables are part of this scheme 
+                if (child instanceof TypeVariable) 
+                    reassignAllVarsToScheme(child.name, t);
+                else 
+                if (child instanceof TypeArray) {
+                    // Get the vars of the child type. 
+                    // If any of them show up in multiple child arrays, then they 
+                    // are part of the parent's child 
+                    for (var childVar of getVars(child))
+                        if (isTypeVarUsedElsewhere(t, childVar.name, i))
+                            reassignAllVarsToScheme(childVar.name, t);                
                 }
             }
         }

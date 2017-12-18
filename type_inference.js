@@ -41,17 +41,10 @@ var TypeInference;
         function TypeArray(types) {
             var _this = _super.call(this) || this;
             _this.types = types;
+            // The type variables belonging to this TypeArray. This has to be computed separately.
+            _this.typeScheme = [];
             return _this;
         }
-        Object.defineProperty(TypeArray.prototype, "typeScheme", {
-            // Get the type variables belonging to this TypeArray 
-            get: function () {
-                var _this = this;
-                return getVars(this).filter(function (v) { return v.scheme == _this; });
-            },
-            enumerable: true,
-            configurable: true
-        });
         Object.defineProperty(TypeArray.prototype, "descendantTypes", {
             // Get all descendant types 
             get: function () {
@@ -65,11 +58,19 @@ var TypeInference;
             enumerable: true,
             configurable: true
         });
+        TypeArray.prototype.typeSchemeToString = function () {
+            var tmp = {};
+            for (var _i = 0, _a = this.typeScheme; _i < _a.length; _i++) {
+                var v = _a[_i];
+                tmp[v.name] = true;
+            }
+            var r = Object.keys(tmp);
+            if (r.length == 0)
+                return "";
+            return "!" + r.join("!") + ".";
+        };
         TypeArray.prototype.toString = function () {
-            var ts = this.typeScheme.join("!.");
-            if (ts.length > 0)
-                ts = "!" + ts;
-            return ts + "(" + this.types.join(' ') + ")";
+            return this.typeSchemeToString() + "(" + this.types.join(' ') + ")";
         };
         return TypeArray;
     }(Type));
@@ -82,8 +83,6 @@ var TypeInference;
         function TypeVariable(name) {
             var _this = _super.call(this) || this;
             _this.name = name;
-            // The type array which contains the definition for this type variable
-            _this.scheme = null;
             return _this;
         }
         TypeVariable.prototype.toString = function () {
@@ -117,7 +116,7 @@ var TypeInference;
     TypeInference.TypeUnifier = TypeUnifier;
     // Compares whether two types are the same after normalizing the type variables. 
     function areTypesSame(t1, t2) {
-        // TODO: implement normalize
+        // TODO: re-implement normalization
         var s1 = t1.toString();
         var s2 = t2.toString();
         return s1 === s2;
@@ -138,18 +137,30 @@ var TypeInference;
     TypeInference.getVars = getVars;
     // This is helper function helps determine whether a type variable should belong 
     function isTypeVarUsedElsewhere(t, varName, pos) {
-        for (var i = 0; i < t.types.length; ++i) {
-            if (i != pos) {
-                var tmp = getVars(t.types[0]);
-                if (varName in tmp)
-                    return true;
-            }
-        }
+        for (var i = 0; i < t.types.length; ++i)
+            if (i != pos && getVars(t.types[i]).filter(function (v) { return v.name == varName; }).length > 0)
+                return true;
         return false;
     }
     TypeInference.isTypeVarUsedElsewhere = isTypeVarUsedElsewhere;
+    // Associate the variable with a new type scheme. Removing it from the previous varScheme 
+    function reassignVarScheme(v, t) {
+        // Remove the variable from the previous scheme 
+        if (v.scheme != undefined)
+            v.scheme.typeScheme = v.scheme.typeScheme.filter(function (t) { return t.name != v.name; });
+        // Set the new scheme 
+        v.scheme = t;
+        t.typeScheme.push(v);
+    }
+    TypeInference.reassignVarScheme = reassignVarScheme;
+    // Associate all variables of the given name in the TypeArray with the TypeArray's scheme
+    function reassignAllVarsToScheme(varName, t) {
+        getVars(t).filter(function (v) { return v.name == varName; }).forEach(function (v) { return reassignVarScheme(v, t); });
+    }
+    TypeInference.reassignAllVarsToScheme = reassignAllVarsToScheme;
     // Assigns each type variable to a scheme based on it appearing in a type array, 
-    // and no other enclosing type array. This is a naive algorithm.
+    // and no other enclosing type array. 
+    // TODO: this is a naive algorithm. I believe the complexity is quadratic or worse. 
     function computeSchemes(t) {
         if (t instanceof TypeArray) {
             // Recursively compute schemas
@@ -157,17 +168,21 @@ var TypeInference;
                 var t2 = _a[_i];
                 computeSchemes(t2);
             }
-            for (var _b = 0, _c = getVars(t); _b < _c.length; _b++) {
-                var v = _c[_b];
-                if (v.scheme == null)
-                    v.scheme = t;
-            }
-            for (var i = 0; i < t.types.length - 1; ++i) {
-                var vars = getVars(t.types[i]);
-                for (var _d = 0, vars_1 = vars; _d < vars_1.length; _d++) {
-                    var v = vars_1[_d];
-                    if (isTypeVarUsedElsewhere(t, v.name, i))
-                        v.scheme = t;
+            // Check each child type.
+            for (var i = 0; i < t.types.length; ++i) {
+                var child = t.types[i];
+                // Individual type variables are part of this scheme 
+                if (child instanceof TypeVariable)
+                    reassignAllVarsToScheme(child.name, t);
+                else if (child instanceof TypeArray) {
+                    // Get the vars of the child type. 
+                    // If any of them show up in multiple child arrays, then they 
+                    // are part of the parent's child 
+                    for (var _b = 0, _c = getVars(child); _b < _c.length; _b++) {
+                        var childVar = _c[_b];
+                        if (isTypeVarUsedElsewhere(t, childVar.name, i))
+                            reassignAllVarsToScheme(childVar.name, t);
+                    }
                 }
             }
         }

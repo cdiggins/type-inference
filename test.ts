@@ -69,30 +69,54 @@ export function astToType(ast:m.AstNode) : ti.Type {
     }
 }
 
+function testComputeSchemas(input:string, fail:boolean=false) {
+    runTest(() => {
+        var t = stringToType(input);
+        ti.computeSchemes(t);
+        return t.toString();
+    }, input, fail);
+}
+
+function runSchemaTests() 
+{
+    testComputeSchemas("('a)");
+    testComputeSchemas("('a 'b)");
+    testComputeSchemas("('a ('b))");
+    testComputeSchemas("('a ('b) ('a))");
+    testComputeSchemas("('a ('b) ('a ('c) ('c 'd)))");
+    testComputeSchemas("(function ('a 'b) ('b 'c))");
+}
+
+runSchemaTests();
 
 function testParse(input:string, fail:boolean=false)
 {
     runTest(() => stringToType(input), input, fail);
 }
 
-testParse("abc");
-testParse("'abc");
-testParse("()");
-testParse("( )");
-testParse("(a)");
-testParse("('a)");
-testParse("(array int)");
-testParse("(array 't)");
-testParse("(function int 't ())");
-testParse("(function int float)");
-testParse("(()())");
-testParse("(function (int (int 'a)) (float (float 'a)))");
-testParse("(()()", true);
-testParse("()()", true);
-testParse("()())", true);
-testParse("(a b", true);
-testParse("a b", true);
-testParse("a b)", true);
+function runParseTests()
+{
+    testParse("abc");
+    testParse("'abc");
+    testParse("()");
+    testParse("( )");
+    testParse("(a)");
+    testParse("('a)");
+    testParse("(array int)");
+    testParse("(array 't)");
+    testParse("(function int 't ())");
+    testParse("(function int float)");
+    testParse("(()())");
+    testParse("(function (int (int 'a)) (float (float 'a)))");
+    testParse("(()()", true);
+    testParse("()()", true);
+    testParse("()())", true);
+    testParse("(a b", true);
+    testParse("a b", true);
+    testParse("a b)", true);
+}
+
+// runParseTests()
 
 function testUnification(a:string, b:string, fail:boolean = false)
 {
@@ -112,15 +136,20 @@ function testUnification(a:string, b:string, fail:boolean = false)
     }, "Unifying " + a + " with " + b, fail);
 }
 
-testUnification("'a", "int");
-testUnification("int", "'a");
-testUnification("int", "int");
-testUnification("('a)", "(int)");
-testUnification("('a (int 'b))", "(int (int (float string)))");
-testUnification("'a", "('b int)");
-testUnification("(function 'a 'b)", "(function (int int) float)");
-testUnification("(function ('a 'b) 'b)", "(function (int (int int)) 'c)");
-testUnification("(function ('a 'b) 'b)", "(function (int (int int)) ('c))", true);
+function runUnificationTests() 
+{
+    testUnification("'a", "int");
+    testUnification("int", "'a");
+    testUnification("int", "int");
+    testUnification("('a)", "(int)");
+    testUnification("('a (int 'b))", "(int (int (float string)))");
+    testUnification("'a", "('b int)");
+    testUnification("(function 'a 'b)", "(function (int int) float)");
+    testUnification("(function ('a 'b) 'b)", "(function (int (int int)) 'c)");
+    testUnification("(function ('a 'b) 'b)", "(function (int (int int)) ('c))", true);
+}
+
+//runUnificationTests();
 
 /*
 function testUnification(a:string, b:string, fail:boolean = false)
