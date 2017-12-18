@@ -90,7 +90,11 @@ function testUnification(a, b, fail) {
     runTest(function () {
         var engine = new type_inference_1.TypeInference.Unifier();
         var expr1 = stringToType(a);
+        type_inference_1.TypeInference.computeSchemes(expr1);
+        console.log(expr1.toString());
         var expr2 = stringToType(b);
+        type_inference_1.TypeInference.computeSchemes(expr2);
+        console.log(expr2.toString());
         engine.unifyTypes(expr1, expr2);
         return "success";
     }, "Unifying " + a + " with " + b, fail);

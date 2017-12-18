@@ -12,27 +12,57 @@ export module TypeInference
     export var trace = false;
 
     // Base class of a type: either a TypeArray, TypeVariable, or TypeConstant
-    export class Type { }
+    export class Type { 
+        get descendantTypes() : Type[] {
+            return [];
+        }            
+    }
 
     // A list of types can be used to represent function types or tuple types. 
-    // This is called a PolyType since it may contain variables with an implicit for-all qualifier
+    // This is called a PolyType since it may contain variables with an implicit for-all qualifier.    
     export class TypeArray extends Type
     {
         constructor(
             public types : Type[])
-        { super(); }
+        { 
+            super(); 
+        }
+
+        // Get the type variables belonging to this TypeArray 
+        get typeScheme() : TypeVariable[] {
+            return getVars(this).filter(v => v.scheme == this);
+        }
+
+        // Get all descendant types 
+        get descendantTypes() : Type[] {
+            var r = this.types.slice();
+            for (var t of this.types) {
+                r = r.concat(t.descendantTypes);
+            }
+            return r;
+        }
 
         toString() : string { 
-            return "(" + this.types.join(' ') + ")"; 
+            var ts = this.typeScheme.join("!");
+            if (ts.length > 0)
+                ts = "!" + ts + ".";
+            return ts + "(" + this.types.join(' ') + ")"; 
         }
     }
 
     // A type variable is used for generics (e.g. T0, TR). 
+    // The type variable must belong to a type scheme of a polytype. This is like a "scope" for type variables.
+    // Computing the type schema is done in an external function.
     export class TypeVariable extends Type
     {
         constructor(
             public name : string) 
-        { super(); }        
+        {   
+            super(); 
+        }
+        
+        // The type array which contains the definition for this type variable
+        scheme : TypeArray = null;
 
         toString() : string { 
             return "'" + this.name;
@@ -70,47 +100,59 @@ export module TypeInference
         [varName:string] : Type;
     }
 
-    // Creates unique variable names in the type signature. Formally called "alpha-conversion".
-    export function renameTypeVars(tx:Type, id:number, lookup : ITypeLookup = {}) : Type {
-        if (tx instanceof TypeVariable) {
-            if (tx.name in lookup) 
-                return lookup[tx.name];
-            else 
-                return lookup[tx.name] = new TypeVariable(id + tx.name);
-        }
-        else if (tx instanceof TypeConstant) 
-            return tx;
-        else if (tx instanceof TypeArray) 
-            return new TypeArray(tx.types.map(t => renameTypeVars(t, id, lookup)));
-        else 
-            throw new Error("Unrecognized type for " + tx);
-    } 
-
-    // Normalizes a type definition by using standardized variable names (T0, T1, ...). 
-    // This allows two types to be compared for equivalency by converting to strings
-    export function normalizeType(tx:Type, lookup : ITypeLookup = {}) : Type {
-        if (tx instanceof TypeVariable) {
-            if (tx.name in lookup) 
-                return lookup[tx.name];
-            else 
-                return lookup[tx.name] = new TypeVariable("T" + Object.keys(lookup).length);
-        }
-        else if (tx instanceof TypeConstant) 
-            return tx;
-        else if (tx instanceof TypeArray) 
-            return new TypeArray(tx.types.map(t => normalizeType(t, lookup)));
-        else 
-            throw new Error("Unrecognized type for " + tx);
-    } 
-
     // Compares whether two types are the same after normalizing the type variables. 
     export function areTypesSame(t1:Type, t2:Type) {
-        var s1 = normalizeType(t1).toString();
-        var s2 = normalizeType(t2).toString();
+        // TODO: implement normalize
+        var s1 = t1.toString();
+        var s2 = t2.toString();
         return s1 === s2;
     }
 
-    // Use this class to unify types that are constrained together 
+    // Returns all type variables contained in a given type
+    export function getVars(t : Type, r : TypeVariable[] = []) : TypeVariable[] {        
+        if (t instanceof TypeVariable)
+            r.push(t);
+        else if (t instanceof TypeArray) 
+            for (var t2 of t.types)
+                getVars(t2, r);        
+        return r;
+    }
+
+    // This is helper function helps determine whether a type variable should belong 
+    export function isTypeVarUsedElsewhere(t:TypeArray, varName:string, pos:number) : boolean {
+        for (var i=0; i < t.types.length; ++i) {
+            if (i != pos) {
+                var tmp = getVars(t.types[0]);
+                if (varName in tmp) 
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    // Assigns each type variable to a scheme based on it appearing in a type array, 
+    // and no other enclosing type array. This is a naive algorithm.
+    export function computeSchemes(t:Type) {
+        if (t instanceof TypeArray) {            
+            // Recursively compute schemas
+            for (var t2 of t.types)
+                computeSchemes(t2);
+            
+            for (var v of getVars(t))
+                if (v.scheme == null)
+                    v.scheme = t;
+
+            for (var i=0; i < t.types.length-1; ++i) {
+                var vars = getVars(t.types[i]);
+                for (var v of vars) {
+                    if (isTypeVarUsedElsewhere(t, v.name, i))
+                        v.scheme = t;
+                }
+            }
+        }
+    }
+
+    // Use this class to unify types that are constrained together.
     export class Unifier
     {
         // Given a type variable name find the unifier. Multiple type varialbles will map to the same unifier 
@@ -291,8 +333,8 @@ export module TypeInference
     }    
 
     // Creates an array type, as a special kind of TypeArray
-    export function arrayType(element:string) : TypeArray {
-        return typeArray(['array', element]);    
+    export function arrayType(element:Type) : TypeArray {
+        return typeArray([typeConstant('array'), element]);    
     }
 
     // Returns true if and only if the type is a type constant with the specified name
@@ -322,13 +364,10 @@ export module TypeInference
         if (!isFunctionType(f)) throw new Error("Expected a function type for f");
         if (!isFunctionType(g)) throw new Error("Expected a function type for g");
         
-        var f1 = renameTypeVars(f, 0) as TypeArray;
-        var g1 = renameTypeVars(g, 1) as TypeArray;
-
-        var inF = functionInput(f1);
-        var outF = functionInput(f1);
-        var inG = functionInput(g1);
-        var outG = functionOutput(g1);
+        var inF = functionInput(f);
+        var outF = functionInput(f);
+        var inG = functionInput(g);
+        var outG = functionOutput(g);
 
         var e = new Unifier();
         e.unifyTypes(outF, inG);
@@ -430,19 +469,17 @@ export module TypeInference
         }
 
         addAssignment(name:string, type:Type, location:any = null) : Type { 
-            var t = renameTypeVars(type, this.index++);
             var scope = this.findNameScope(name);        
             if (scope[name] == null)
-                scope[name] = t;
+                scope[name] = type;
             else
-                this.addConstraint(scope[name], t, location);
-            return t;
+                this.addConstraint(scope[name], type, location);
+            return type;
         }
         
         addFunctionCall(name:string, args:TypeArray, location:any = null) : Type { 
             var funcType = this.findNameScope(name)[name] as TypeArray;
             if (!isFunctionType(funcType)) throw new Error("Not a function type associated with " + name);
-            funcType = renameTypeVars(funcType, this.index++) as TypeArray;
             var input = functionInput(funcType);    
             var output = functionOutput(funcType);
             this.addConstraint(input, output, location);

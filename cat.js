@@ -338,7 +338,7 @@ var CatLanguage;
         CatStack.prototype.compose = function () {
             var a = this.popType();
             var b = this.popType();
-            this.push(new CatQuotation([a, b]));
+            this.push(new CatQuotation([b, a]));
         };
         // Calls a plain JavaScript function using arguments from the stack
         // and pushes the result back onto the stack. 

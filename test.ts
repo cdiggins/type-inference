@@ -98,8 +98,15 @@ function testUnification(a:string, b:string, fail:boolean = false)
 {
     runTest( () => {
         var engine = new ti.Unifier();
+        
         var expr1 = stringToType(a);
+        ti.computeSchemes(expr1);
+        console.log(expr1.toString());
+        
         var expr2 = stringToType(b);
+        ti.computeSchemes(expr2);
+        console.log(expr2.toString());
+
         engine.unifyTypes(expr1, expr2);
         return "success";
     }, "Unifying " + a + " with " + b, fail);

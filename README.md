@@ -280,3 +280,22 @@ I also suggest you to read the article about System F. It is a more complex syst
 * Finding a type for a variable becomes a bit easier. 
 * A type variable needs a type scheme: the type scheme helps to uniquely identify the variable. 
 * So you have an environment of type schemes? 
+
+* There are two things we do.
+1) We compose functions. A->B C->D (unify B and C and put the result into D)
+2) We apply functions to stacks A->B (A) generates a stack (B)
+
+These are both similar problems. When unifying we have to work out what variables belong to what. 
+
+This can be done manually. We can actually work out the types during unification. 
+
+It makes using the algorithm much simpler. I have to "edit" the type variables, which is fine I guess. 
+
+WAIT: the right hand side ... "getting the unified type" is the only time that this shit really matters isn't it? 
+
+What I am saying is that if the unifier has a type variable, then the type should be alpha renamed. 
+
+Just keep generating fresh variables. And unify as much as possible at each step. 
+
+Whenever a TypeVariable unifier gets a TypeArray I should replace all instances of that TypeVars in all TypeArrays with the unified version. 
+
