@@ -534,3 +534,8 @@ Todo:
 - Deal with recursive types
 - Run more complex types
 - Figuring out when to create new types. 
+
+//=
+
+My theory is that whenever I constrain a type array to a type variable, even if it is the same, I have 
+to generate new type-variable names for the type schemes. 

@@ -158,6 +158,8 @@ var TypeInference;
     // Use this class to unify types that are constrained together.
     var Unifier = (function () {
         function Unifier() {
+            // Used for generate fresh variable names 
+            this.id = 0;
             // Given a type variable name find the unifier. Multiple type varialbles will map to the same unifier 
             this.unifiers = {};
         }
@@ -202,16 +204,15 @@ var TypeInference;
             var results = [];
             for (var k in this.unifiers) {
                 var u = this.unifiers[k];
-                var t = this.getUnifiedType(u.unifier);
+                var t = this.getUnifiedType(u.unifier, {}, []);
                 results.push("type unifier for " + k + ", unifier name " + u.name + ", unifying type " + t);
             }
             return results.join('\n');
         };
         // Replaces all variables in a type expression with the unified version
         // The previousVars variable allows detection of cyclical references
-        Unifier.prototype.getUnifiedType = function (expr, previousVars) {
+        Unifier.prototype.getUnifiedType = function (expr, unifiedVars, previousVars) {
             var _this = this;
-            if (previousVars === void 0) { previousVars = []; }
             if (expr instanceof TypeConstant)
                 return expr;
             else if (expr instanceof TypeVariable) {
@@ -226,13 +227,28 @@ var TypeInference;
                     return u.unifier;
                 else if (u.unifier instanceof TypeConstant)
                     return u.unifier;
-                else if (u.unifier instanceof TypeArray)
-                    return this.getUnifiedType(u.unifier, [expr.name].concat(previousVars));
+                else if (u.unifier instanceof TypeArray) {
+                    /*
+                    if (expr.name in unifiedVars) {
+                        
+                        // We have already computed a unified type: better add new variables.
+                        return generateFreshNamesForScheme(unifiedVars[expr.name], this.id++);
+                    }
+                    else {
+                        var r = this.getUnifiedType(u.unifier, unifiedVars, [expr.name].concat(previousVars));
+                        return unifiedVars[expr.name] = r;
+                    }*/
+                    /*
+                    return this.getUnifiedType(u.unifier, unifiedVars, [expr.name].concat(previousVars));
+                    */
+                    var r = this.getUnifiedType(u.unifier, unifiedVars, [expr.name].concat(previousVars));
+                    return generateFreshNamesForScheme(r, this.id++);
+                }
                 else
                     throw new Error("Unhandled kind of type " + expr);
             }
             else if (expr instanceof TypeArray)
-                return new TypeArray(expr.types.map(function (t) { return _this.getUnifiedType(t, previousVars); }));
+                return new TypeArray(expr.types.map(function (t) { return _this.getUnifiedType(t, {}, previousVars); }));
             else
                 throw new Error("Unrecognized kind of type expression " + expr);
         };
@@ -429,6 +445,16 @@ var TypeInference;
         return renameVars(t, names);
     }
     TypeInference.generateFreshNames = generateFreshNames;
+    // Generates fresh variable names for all the variables in the list
+    function generateFreshNamesForScheme(t, id) {
+        var names = {};
+        for (var _i = 0, _a = t.typeVarDeclarations; _i < _a.length; _i++) {
+            var v = _a[_i];
+            names[v.name] = v.name + "$" + id;
+        }
+        return renameVars(t, names);
+    }
+    TypeInference.generateFreshNamesForScheme = generateFreshNamesForScheme;
     // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
     function normalizeVarNames(t) {
         var names = {};
@@ -553,8 +579,8 @@ var TypeInference;
         var outG = functionOutput(g);
         var e = new Unifier();
         e.unifyTypes(outF, inG);
-        var input = e.getUnifiedType(inF);
-        var output = e.getUnifiedType(outG);
+        var input = e.getUnifiedType(inF, {}, []);
+        var output = e.getUnifiedType(outG, {}, []);
         var r = functionType(input, output);
         if (TypeInference.trace) {
             console.log(e.state());
@@ -580,7 +606,7 @@ var TypeInference;
         var input = functionInput(fxn);
         var output = functionOutput(fxn);
         u.unifyTypes(input, args);
-        return u.getUnifiedType(output);
+        return u.getUnifiedType(output, {}, []);
     }
     TypeInference.applyFunction = applyFunction;
     // Creates a function type that generates the given type 

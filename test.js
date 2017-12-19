@@ -224,10 +224,10 @@ function regressionTestComposition() {
         var r = type_inference_1.TypeInference.composeFunctions(expr1, expr2);
         r = type_inference_1.TypeInference.normalizeVarNames(r);
         if (r.toString() != exp) {
-            console.log("FAILED: expected " + exp + " got " + r);
+            console.log("FAILED: " + xs[0] + " + expected " + exp + " got " + r);
         }
         else {
-            console.log("PASSED");
+            console.log("PASSED: " + xs[0]);
         }
     }
 }
@@ -235,8 +235,9 @@ function regressionTestComposition() {
 //runCloneTests();
 //printCoreTypes();
 //testComposingCoreOps();
-//testComposition(coreTypes['dup'], coreTypes['compose']);
 //outputCompositions();
-regressionTestComposition();
+//regressionTestComposition();
+// The troublesome type.
+testComposition(coreTypes['quote'], coreTypes['dup']);
 process.exit();
 //# sourceMappingURL=test.js.map
