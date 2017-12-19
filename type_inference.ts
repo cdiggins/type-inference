@@ -1,6 +1,5 @@
 // A Type Inference Algorithm by Christopher Digginss  
-// This a novel type inference algorithm not Hindley Milner Type inference aka Algorithm W. 
-// It provides support for full inference of higher rank type inference and row polymorphism.
+// This a novel type inference algorithm that provides support for full inference of higher rank polymorphic types
 
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
@@ -116,7 +115,7 @@ export module TypeInference
     export class TypeUnifier
     {
         constructor(
-            public name:TypeVariable,
+            public name:string,
             public unifier:Type)
         { }
     }
@@ -177,10 +176,7 @@ export module TypeInference
             if (t1 instanceof TypeVariable) 
             {
                 // Two variable have a special path: 
-                if (t2 instanceof TypeVariable) 
-                    return this._unifyTypeVars(t1, t2, depth);
-                else
-                    return this._updateUnifier(t1, t2, depth);
+                return this._updateUnifier(t1, t2, depth);
             }
             // If one is a variable its unifier with the new type. 
             else if (t2 instanceof TypeVariable) 
@@ -228,7 +224,7 @@ export module TypeInference
                 // If we encountered the type variable previously, it meant that there is a recursive relation
                 for (var i=0; i < previousVars.length; ++i) 
                     if (previousVars[i] == expr.name) 
-                        throw new Error("Recursive relation found for " + expr + " at distance " + i);
+                        return recursiveType(i);
                 var u = this.unifiers[expr.name];
                 if (!u)
                     return expr;
@@ -274,30 +270,34 @@ export module TypeInference
             return new TypeArray(rtypes);
         }
 
+        // All unifiers that refer to varName as the unifier are pointed to the new unifier 
+        _updateVariableUnifiers(varName:string, u:TypeUnifier) {
+            for (var x in this.unifiers) {
+                var t = this.unifiers[x].unifier;
+                if (t instanceof TypeVariable) 
+                    if (t.name == varName)
+                        this.unifiers[x] = u;
+            }
+        }            
+            
         // Computes the best unifier between the current unifier and the new variable.        
-        // Stores the result in the unifier name.
-        _updateUnifier(a:TypeVariable, t:Type, depth:number) : Type {
-            var u = this._getOrCreateUnifier(a);
+        // Updates all unifiers which point to a (or to t if t is a TypeVar) to use the new type. 
+        _updateUnifier(a:TypeVariable, t:Type, depth:number) : Type {            
+            var u = this._getOrCreateUnifier(a);            
             u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
-            if (u.unifier instanceof TypeVariable)
-                this.unifiers[u.unifier.name] = u;
-            if (t instanceof TypeVariable)                
-                this.unifiers[t.name] = u;
+            this._updateVariableUnifiers(a.name, u);
+            if (t instanceof TypeVariable) {
+                // Make sure a unifier is created
+                this._getOrCreateUnifier(t);
+                this._updateVariableUnifiers(t.name, u);
+            }
             return u.unifier;
-        }
-
-        // Unifying two variables. Both share the same unifier afterwards.
-        _unifyTypeVars(a:TypeVariable, b:TypeVariable, depth:number) : Type {
-            var t = this._getOrCreateUnifier(b).unifier;
-            var r = this._updateUnifier(a, t, depth);
-            this.unifiers[b.name] = this._getOrCreateUnifier(a);
-            return r;
         }
 
         // Gets or creates a type unifiers for a type variables
         _getOrCreateUnifier(t : TypeVariable) : TypeUnifier {
             if (!(t.name in this.unifiers))
-                return this.unifiers[t.name] = new TypeUnifier(t, t);
+                return this.unifiers[t.name] = new TypeUnifier(t.name, t);
             else 
                 return this.unifiers[t.name];
         }
@@ -344,6 +344,13 @@ export module TypeInference
         return typeArray([element, typeConstant('*')]);    
     }
 
+    // Creates a recursive type, as a special kind of TypeArray. The numberical value 
+    // refers to the depth of the recursion: how many TypeArrays you have to go up 
+    // to find the recurison base case. 
+    export function recursiveType(depth:Number) : TypeArray {
+        return typeArray([typeConstant('rec'), typeConstant(depth.toString())]);    
+    }
+    
     // Returns true if and only if the type is a type constant with the specified name
     export function isTypeConstant(t:Type, name:string) : boolean {
         return t instanceof TypeConstant && t.name === name;
@@ -561,6 +568,9 @@ export module TypeInference
         var output = e.getUnifiedType(outG);
 
         var r = functionType(input, output);
+        if (trace) {
+            console.log(e.state());
+        }
         return r;        
     }
 

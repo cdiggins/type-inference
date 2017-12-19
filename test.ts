@@ -1,6 +1,8 @@
 import { TypeInference as ti } from "./type_inference";
 import { Myna as m } from "./node_modules/myna-parser/myna";
 
+var verbose = false;
+
 function registerGrammars() 
 {
     // This is a more verbose type grammar than the one used in Cat. 
@@ -10,7 +12,7 @@ function registerGrammars()
         this.typeExprRec            = m.delay(() => { return _this.typeExpr});
         this.typeList               = m.guardedSeq('(', m.ws, this.typeExprRec.ws.zeroOrMore, ')').ast;
         this.typeVar                = m.guardedSeq("'", m.identifier).ast;
-        this.typeConstant           = m.identifier.or("->").or("*").or("[]").ast;
+        this.typeConstant           = m.identifier.or(m.digits).or("->").or("*").or("[]").ast;
         this.typeExpr               = m.choice(this.typeList, this.typeVar, this.typeConstant).ast;        
     }        
 
@@ -20,22 +22,6 @@ function registerGrammars()
 registerGrammars();
 
 var parser = m.parsers['type'];
-
-/*
-// Converts a type int a conveneient string representation
-export function typeToString(t:ti.Type) : string {
-    if (ti.isFunctionType(t) && t instanceof ti.TypeArray) {
-        return t.typeSchemeToString() + "(" 
-            + typeToString(ti.functionInput(t)) + " -> " 
-            + typeToString(ti.functionOutput(t)) + ")";
-    }
-    else if (t instanceof ti.TypeArray) {
-        return t.typeSchemeToString() + "(" + t.types.map(typeToString).join(" ") + ")";
-    }
-    else {
-        return t.toString();
-    }
-}*/
 
 function runTest(f:() => any, testName:string, expectFail:boolean = false) {
     try {
@@ -159,13 +145,19 @@ function testComposition(a:string, b:string, fail:boolean = false)
 {
     runTest( () => {        
         var expr1 = stringToType(a);
-        console.log("Type A: " + expr1.toString());
+
+        if (verbose)
+            console.log("Type A: " + expr1.toString());
         
         var expr2 = stringToType(b);
-        console.log("Type B: " + expr2.toString());
+
+        if (verbose)
+            console.log("Type B: " + expr2.toString());
 
         var r = ti.composeFunctions(expr1 as ti.TypeArray, expr2 as ti.TypeArray);
-        console.log("Composed type: " + r.toString())
+
+        if (verbose)
+            console.log("Composed type: " + r.toString())
 
         // Return a prettified version of the function
         r = ti.normalizeVarNames(r) as ti.TypeArray;        
@@ -190,6 +182,18 @@ function testComposingCoreOps() {
     }
 }
 
+function outputCompositions() {
+    for (var op1 in coreTypes) {
+        for (var op2 in coreTypes) { 
+            var expr1 = stringToType(coreTypes[op1]);
+            var expr2 = stringToType(coreTypes[op2]);
+            var r = ti.composeFunctions(expr1 as ti.TypeArray, expr2 as ti.TypeArray);
+            r = ti.normalizeVarNames(r) as ti.TypeArray;        
+            console.log('["' + op1 + " " + op2 + '", "' + r.toString() + '"],');
+        }
+    }
+}
+
 function printCoreTypes() {
     for (var k in coreTypes) {
         var ts = coreTypes[k];
@@ -200,10 +204,69 @@ function printCoreTypes() {
     }
 }
 
+function regressionTestComposition() {
+    var data = [
+        ["apply apply", "!t2.(!t0.((t0 -> !t1.((t1 -> t2) t1)) t0) -> t2)"],
+        ["apply compose", "!t3!t2!t4.(!t0.((t0 -> !t1.((t1 -> t2) ((t3 -> t1) t4))) t0) -> ((t3 -> t2) t4))"],
+        ["apply quote", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (!t3.(t3 -> (t1 t3)) t2))"],
+        ["apply dup", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (t1 (t1 t2)))"],
+        ["apply swap", "!t2!t1!t3.(!t0.((t0 -> (t1 (t2 t3))) t0) -> (t2 (t1 t3)))"],
+        ["apply pop", "!t2.(!t0.((t0 -> !t1.(t1 t2)) t0) -> t2)"],
+        ["compose apply", "!t1.(!t0.((t0 -> t1) !t3.(!t2.(t2 -> t0) t3)) -> t1)"],
+        ["compose compose", "!t3!t1!t4.(!t0.((t0 -> t1) !t2.((t2 -> t0) ((t3 -> t2) t4))) -> ((t3 -> t1) t4))"],
+        ["compose quote", "!t2!t1!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> (!t4.(t4 -> ((t2 -> t1) t4)) t3))"],
+        ["compose dup", "!t2!t1!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) ((t2 -> t1) t3)))"],
+        ["compose swap", "!t3!t2!t1!t4.(!t0.((t0 -> t1) ((t2 -> t0) (t3 t4))) -> (t3 ((t2 -> t1) t4)))"],
+        ["compose pop", "!t3.(!t0.(!t1.(t0 -> t1) (!t2.(t2 -> t0) t3)) -> t3)"],
+        ["quote apply", "!t0.(!t1.(t0 t1) -> !t2.(t0 t2))"],
+        ["quote compose", "!t1!t0!t2!t3.((t0 ((t1 -> t2) t3)) -> ((t1 -> (t0 t2)) t3))"],
+        ["quote quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (!t3.(t3 -> (t0 t3)) t2)) t1))"],
+        ["quote dup", "!t0!t1.((t0 t1) -> !t2.((t2 -> (t0 t2)) !t3.((t3 -> (t0 t3)) t1)))"],
+        ["quote swap", "!t1!t0!t2.((t0 (t1 t2)) -> (t1 (!t3.(t3 -> (t0 t3)) t2)))"],
+        ["quote pop", "!t1.(!t0.(t0 t1) -> t1)"],
+        ["dup apply", "!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)"],
+        ["dup compose", "!t0!t1.(((t0 -> t0) t1) -> ((t0 -> t0) t1))"],
+        ["dup quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) (t0 t1)))"],
+        ["dup dup", "!t0!t1.((t0 t1) -> (t0 (t0 (t0 t1))))"],
+        ["dup swap", "!t0!t1.((t0 t1) -> (t0 (t0 t1)))"],
+        ["dup pop", "!t0!t1.((t0 t1) -> (t0 t1))"],
+        ["swap apply", "!t2.(!t0.(t0 !t1.(((t0 t1) -> t2) t1)) -> t2)"],
+        ["swap compose", "!t0!t2!t3.(!t1.((t0 -> t1) ((t1 -> t2) t3)) -> ((t0 -> t2) t3))"],
+        ["swap quote", "!t1!t0!t2.((t0 (t1 t2)) -> (!t3.(t3 -> (t1 t3)) (t0 t2)))"],
+        ["swap dup", "!t1!t0!t2.((t0 (t1 t2)) -> (t1 (t1 (t0 t2))))"],
+        ["swap swap", "!t0!t1!t2.((t0 (t1 t2)) -> (t0 (t1 t2)))"],
+        ["swap pop", "!t0!t2.((t0 !t1.(t1 t2)) -> (t0 t2))"],
+        ["pop apply", "!t2.(!t0.(t0 !t1.((t1 -> t2) t1)) -> t2)"],
+        ["pop compose", "!t3!t2!t4.(!t0.(t0 !t1.((t1 -> t2) ((t3 -> t1) t4))) -> ((t3 -> t2) t4))"],
+        ["pop quote", "!t1!t2.(!t0.(t0 (t1 t2)) -> (!t3.(t3 -> (t1 t3)) t2))"],
+        ["pop dup", "!t1!t2.(!t0.(t0 (t1 t2)) -> (t1 (t1 t2)))"],
+        ["pop swap", "!t2!t1!t3.(!t0.(t0 (t1 (t2 t3))) -> (t2 (t1 t3)))"],
+        ["pop pop", "!t2.(!t0.(t0 !t1.(t1 t2)) -> t2)"],
+    ];
+
+    for (var xs of data) {
+        var ops = xs[0].split(" ");
+        var exp = xs[1];
+        var expr1 = stringToType(coreTypes[ops[0]]);
+        var expr2 = stringToType(coreTypes[ops[1]]);
+        var r = ti.composeFunctions(expr1 as ti.TypeArray, expr2 as ti.TypeArray);
+        r = ti.normalizeVarNames(r) as ti.TypeArray;
+        if (r.toString() != exp) {
+            console.log("FAILED: expected " + exp + " got " + r);
+        }
+        else {
+            console.log("PASSED");
+        }
+    }
+}
+
 //runParseTests()
 //runCloneTests();
 //printCoreTypes();
-testComposingCoreOps();
+//testComposingCoreOps();
+//testComposition(coreTypes['dup'], coreTypes['compose']);
+//outputCompositions();
+regressionTestComposition();
 
 declare var process : any;
 process.exit();
