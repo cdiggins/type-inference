@@ -51,7 +51,7 @@ function astToType(ast) {
         return null;
     switch (ast.name) {
         case "typeVar":
-            return type_inference_1.TypeInference.typeVar(ast.allText.substr(1));
+            return type_inference_1.TypeInference.typeVariable(ast.allText.substr(1));
         case "typeConstant":
             return type_inference_1.TypeInference.typeConstant(ast.allText);
         case "typeList":
@@ -70,9 +70,9 @@ function testClone(input, fail) {
     runTest(function () {
         var t = stringToType(input);
         console.log("Original   : " + t);
-        t = type_inference_1.TypeInference.clone(t);
+        t = t.clone({});
         console.log("Cloned     : " + t);
-        t = type_inference_1.TypeInference.generateFreshNames(t, 0);
+        t = t.freshParameterNames();
         console.log("Fresh vars : " + t);
         t = type_inference_1.TypeInference.normalizeVarNames(t);
         console.log("Normalized : " + t);
@@ -80,6 +80,7 @@ function testClone(input, fail) {
     }, input, fail);
 }
 function runCloneTests() {
+    testClone("(('a 'b) -> ('b 'c))");
     testClone("('a)");
     testClone("('a 'b)");
     testClone("('a ('b))");
@@ -179,22 +180,22 @@ function printCoreTypes() {
 function regressionTestComposition() {
     var data = [
         ["apply apply", "!t2.(!t0.((t0 -> !t1.((t1 -> t2) t1)) t0) -> t2)"],
-        ["apply compose", "!t3!t2!t4.(!t0.((t0 -> !t1.((t1 -> t2) ((t3 -> t1) t4))) t0) -> ((t3 -> t2) t4))"],
+        ["apply compose", "!t2!t3!t4.(!t0.((t0 -> !t1.((t1 -> t2) ((t3 -> t1) t4))) t0) -> ((t3 -> t2) t4))"],
         ["apply quote", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (!t3.(t3 -> (t1 t3)) t2))"],
         ["apply dup", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (t1 (t1 t2)))"],
-        ["apply swap", "!t2!t1!t3.(!t0.((t0 -> (t1 (t2 t3))) t0) -> (t2 (t1 t3)))"],
+        ["apply swap", "!t1!t2!t3.(!t0.((t0 -> (t1 (t2 t3))) t0) -> (t2 (t1 t3)))"],
         ["apply pop", "!t2.(!t0.((t0 -> !t1.(t1 t2)) t0) -> t2)"],
         ["compose apply", "!t1.(!t0.((t0 -> t1) !t3.(!t2.(t2 -> t0) t3)) -> t1)"],
-        ["compose compose", "!t3!t1!t4.(!t0.((t0 -> t1) !t2.((t2 -> t0) ((t3 -> t2) t4))) -> ((t3 -> t1) t4))"],
-        ["compose quote", "!t2!t1!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> (!t4.(t4 -> ((t2 -> t1) t4)) t3))"],
-        ["compose dup", "!t2!t1!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) ((t2 -> t1) t3)))"],
-        ["compose swap", "!t3!t2!t1!t4.(!t0.((t0 -> t1) ((t2 -> t0) (t3 t4))) -> (t3 ((t2 -> t1) t4)))"],
+        ["compose compose", "!t1!t3!t4.(!t0.((t0 -> t1) !t2.((t2 -> t0) ((t3 -> t2) t4))) -> ((t3 -> t1) t4))"],
+        ["compose quote", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> (!t4.(t4 -> ((t2 -> t1) t4)) t3))"],
+        ["compose dup", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) ((t2 -> t1) t3)))"],
+        ["compose swap", "!t1!t2!t3!t4.(!t0.((t0 -> t1) ((t2 -> t0) (t3 t4))) -> (t3 ((t2 -> t1) t4)))"],
         ["compose pop", "!t3.(!t0.(!t1.(t0 -> t1) (!t2.(t2 -> t0) t3)) -> t3)"],
         ["quote apply", "!t0.(!t1.(t0 t1) -> !t2.(t0 t2))"],
-        ["quote compose", "!t1!t0!t2!t3.((t0 ((t1 -> t2) t3)) -> ((t1 -> (t0 t2)) t3))"],
+        ["quote compose", "!t0!t1!t2!t3.((t0 ((t1 -> t2) t3)) -> ((t1 -> (t0 t2)) t3))"],
         ["quote quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (!t3.(t3 -> (t0 t3)) t2)) t1))"],
         ["quote dup", "!t0!t1.((t0 t1) -> !t2.((t2 -> (t0 t2)) !t3.((t3 -> (t0 t3)) t1)))"],
-        ["quote swap", "!t1!t0!t2.((t0 (t1 t2)) -> (t1 (!t3.(t3 -> (t0 t3)) t2)))"],
+        ["quote swap", "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (!t3.(t3 -> (t0 t3)) t2)))"],
         ["quote pop", "!t1.(!t0.(t0 t1) -> t1)"],
         ["dup apply", "!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)"],
         ["dup compose", "!t0!t1.(((t0 -> t0) t1) -> ((t0 -> t0) t1))"],
@@ -204,15 +205,15 @@ function regressionTestComposition() {
         ["dup pop", "!t0!t1.((t0 t1) -> (t0 t1))"],
         ["swap apply", "!t2.(!t0.(t0 !t1.(((t0 t1) -> t2) t1)) -> t2)"],
         ["swap compose", "!t0!t2!t3.(!t1.((t0 -> t1) ((t1 -> t2) t3)) -> ((t0 -> t2) t3))"],
-        ["swap quote", "!t1!t0!t2.((t0 (t1 t2)) -> (!t3.(t3 -> (t1 t3)) (t0 t2)))"],
-        ["swap dup", "!t1!t0!t2.((t0 (t1 t2)) -> (t1 (t1 (t0 t2))))"],
+        ["swap quote", "!t0!t1!t2.((t0 (t1 t2)) -> (!t3.(t3 -> (t1 t3)) (t0 t2)))"],
+        ["swap dup", "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (t1 (t0 t2))))"],
         ["swap swap", "!t0!t1!t2.((t0 (t1 t2)) -> (t0 (t1 t2)))"],
         ["swap pop", "!t0!t2.((t0 !t1.(t1 t2)) -> (t0 t2))"],
         ["pop apply", "!t2.(!t0.(t0 !t1.((t1 -> t2) t1)) -> t2)"],
-        ["pop compose", "!t3!t2!t4.(!t0.(t0 !t1.((t1 -> t2) ((t3 -> t1) t4))) -> ((t3 -> t2) t4))"],
+        ["pop compose", "!t2!t3!t4.(!t0.(t0 !t1.((t1 -> t2) ((t3 -> t1) t4))) -> ((t3 -> t2) t4))"],
         ["pop quote", "!t1!t2.(!t0.(t0 (t1 t2)) -> (!t3.(t3 -> (t1 t3)) t2))"],
         ["pop dup", "!t1!t2.(!t0.(t0 (t1 t2)) -> (t1 (t1 t2)))"],
-        ["pop swap", "!t2!t1!t3.(!t0.(t0 (t1 (t2 t3))) -> (t2 (t1 t3)))"],
+        ["pop swap", "!t1!t2!t3.(!t0.(t0 (t1 (t2 t3))) -> (t2 (t1 t3)))"],
         ["pop pop", "!t2.(!t0.(t0 !t1.(t1 t2)) -> t2)"],
     ];
     for (var _i = 0, data_1 = data; _i < data_1.length; _i++) {
@@ -236,8 +237,6 @@ function regressionTestComposition() {
 //printCoreTypes();
 //testComposingCoreOps();
 //outputCompositions();
-//regressionTestComposition();
-// The troublesome type.
-testComposition(coreTypes['quote'], coreTypes['dup']);
+regressionTestComposition();
 process.exit();
 //# sourceMappingURL=test.js.map

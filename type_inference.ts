@@ -14,32 +14,88 @@ export module TypeInference
     export class Type { 
         // All type varible referenced somewhere by the type, or the type itself if it is a TypeVariable.
         typeVars : TypeVariable[] = [];            
+        
+        clone(newTypes:ITypeLookup) : Type {
+            throw new Error("Clone must be overridden in derived class");
+        }
     }
 
     // A collection of a fixed number of types can be used to represent function types or tuple types. 
     // A list of types is usually encoded as a nested set of type pairs (TypeArrays with two elements).
-    // If a TypeArray declares variables with an implicit for-all qualifier, it is considered a "PolyType". 
-    // The variables which are part of the TypeArray 
-    // All variables are assumed to be uniquely named. When constructed the TypeArray 
-    // will compute which type variables need to be lifted to it's "TypeScheme".
+    // If a TypeArray has Type parameters, quantified unbound type variables, it is considered a "PolyType".
+    // Binding type variables is done through the clone function 
     export class TypeArray extends Type
     {
         constructor(
-            public types : Type[])
+            public types : Type[], computeParameters:boolean)
         { 
             super(); 
 
             // Compute all referenced types 
             for (var t of types) 
-                this.typeVars = this.typeVars.concat(t.typeVars);            
+                this.typeVars = this.typeVars.concat(t.typeVars);       
+                
+            // Given just a type with type variables the sete of type parameters 
+            // can be inferred based on where they occur in the type tree
+            if (computeParameters)
+                this.computeParameters();
+        }
+
+        // A helper function to copy a parameter list 
+        cloneParameters(dest:TypeArray, from:TypeVariable[], newTypes:ITypeLookup) {
+            var params = [];
+            for (var tv of from) {
+                var param = newTypes[tv.name];
+                if (param == undefined)
+                    throw new Error("Could not find type parameter: " + tv.name);
+                params.push(param);
+            }
+            dest.typeParameterVars = params;
+        }
+
+        // Returns a copy of the type array, substituting type variables using the lookup table.        
+        clone(newTypes:ITypeLookup) : TypeArray {
+            var r = new TypeArray(this.types.map(t => t.clone(newTypes)), false);
+            this.cloneParameters(r, this.typeParameterVars, newTypes);
+            return r;
+        }
+
+        // Returns a copy of the type array creating new parameter names. 
+        freshParameterNames(ids:number[] = []) : TypeArray {
+            // Create a lookup table for the type parameters with new names 
+            var newTypes:ITypeLookup = {};
+            var id = ids.length;
+            ids.push[id];
+            for (var tp of this.typeParameterNames)
+                newTypes[tp] = new TypeVariable(tp + "$" + id);
             
-            // Assign all correct type variables to this type scheme
-            for (var i=0; i < types.length; ++i) {
-                var child = types[i];
+            // Clone all of the types.             
+            var types = this.types.map(t => t.clone(newTypes));
+
+            // Recursively call "freshParameterNames" on child type arrays as needed. 
+            types = types.map(t => t instanceof TypeArray ? t.freshParameterNames(ids) : t);
+            var r = new TypeArray(types, false);
+
+            // Now recreate the type parameter list
+            this.cloneParameters(r, this.typeParameterVars, newTypes);
+            
+            return r;
+        }
+
+        // A list of the parameter names (without repetition)
+        get typeParameterNames() : string[] {
+            return uniqueStrings(this.typeParameterVars.map(tv => tv.name)).sort();
+        }
+         
+        // Infer which type variables are actually type parameters (universally quantified) 
+        // based on their position.
+        computeParameters() {
+            for (var i=0; i < this.types.length; ++i) {
+                var child = this.types[i];
 
                 // Individual type variables are part of this scheme 
                 if (child instanceof TypeVariable) 
-                    _reassignAllVarsToScheme(child.name, this);
+                    _reassignAllTypeVars(child.name, this);
                 else 
                 if (child instanceof TypeArray) {
                     // Get the vars of the child type. 
@@ -47,13 +103,13 @@ export module TypeInference
                     // are part of the parent's child 
                     for (var childVar of child.typeVars)
                         if (_isTypeVarUsedElsewhere(this, childVar.name, i))
-                            _reassignAllVarsToScheme(childVar.name, this);                
+                            _reassignAllTypeVars(childVar.name, this);                
                 }
             }
 
             // Implementation validation step:
             // Assure that the type scheme variables are all in the typeVars 
-            for (var v of this.typeVarDeclarations) {
+            for (var v of this.typeParameterVars) {
                 var i = this.typeVars.indexOf(v);
                 if (i < 0) 
                     throw new Error("Internal error: type scheme references a variable that is not marked as referenced by the type variable")
@@ -61,22 +117,24 @@ export module TypeInference
         }
 
         // The type variables that are bound to this TypeArray. 
-        // Always a subset of typeVars
-        typeVarDeclarations : TypeVariable[] = [];
+        // Always a subset of typeVars. This could have the same type variable repeated twice. 
+        typeParameterVars : TypeVariable[] = [];        
 
-        // Provides a user friendly representation of the type scheme 
-        typeSchemeToString() {
-            var tmp = {};
-            for (var v of this.typeVarDeclarations)
-                tmp[v.name] = true;
-            var r = Object.keys(tmp);
-            if (r.length == 0)
-                return "";
-            return "!" + r.join("!") + ".";            
+        // Provides a user friendly representation of the type scheme (list of type parameters)
+        get typeParametersToString() : string {
+            return this.isPolyType 
+                ? "!" + this.typeParameterNames.join("!") + "."
+                : "";
         }
 
+        // Returns true if there is at least one type parameter associated with this type array
+        get isPolyType() : boolean {
+            return this.typeParameterVars.length > 0;
+        }
+
+        //  A user friendly name 
         toString() : string { 
-            return this.typeSchemeToString() + "(" + this.types.join(' ') + ")"; 
+            return this.typeParametersToString + "(" + this.types.join(' ') + ")"; 
         }
     }
 
@@ -91,9 +149,14 @@ export module TypeInference
             super(); 
             this.typeVars.push(this);
         }
-        
-        scheme : TypeArray;
 
+        clone(newTypes:ITypeLookup) : Type {
+            // TODO: if the type is a polytype we will need to generate fresh type variable names.
+            return this.name in newTypes 
+                ? newTypes[this.name] as TypeVariable
+                : newTypes[this.name] = new TypeVariable(this.name);
+        }
+        
         toString() : string { 
             return this.name;
         }
@@ -109,6 +172,10 @@ export module TypeInference
         toString() : string { 
             return this.name;
         }
+
+        clone(newTypes:ITypeLookup) : TypeConstant {
+            return new TypeConstant(this.name);
+        }        
     }
 
     // A type unifier is a mapping from a type variable to a best-fit type
@@ -140,16 +207,16 @@ export module TypeInference
 
     // Associate the variable with a new type scheme. Removing it from the previous varScheme 
     export function _reassignVarScheme(v:TypeVariable, t:TypeArray) {
-        // Remove the variable from the previous scheme 
-        if (v.scheme != undefined) 
-            v.scheme.typeVarDeclarations = v.scheme.typeVarDeclarations.filter(t => t.name != v.name);
-        // Set the new scheme 
-        v.scheme = t;
-        t.typeVarDeclarations.push(v);
+        // Remove the variable from all other type schemes below the given one. 
+        // TODO: horrible complexity, but should work fine. 
+        for (var x of descendantTypes(t)) 
+            if (x instanceof TypeArray) 
+                x.typeParameterVars = x.typeParameterVars.filter(vd => vd.name != v.name);
+        t.typeParameterVars.push(v);
     }
         
     // Associate all variables of the given name in the TypeArray with the TypeArray's scheme
-    export function _reassignAllVarsToScheme(varName:string, t:TypeArray) {
+    export function _reassignAllTypeVars(varName:string, t:TypeArray) {
         t.typeVars.filter(v => v.name == varName).forEach(v => _reassignVarScheme(v, t));
     }
 
@@ -164,7 +231,7 @@ export module TypeInference
 
         // Unify both types, returning the most specific type possible. 
         // When a type variable is unified with something the new unifier is stored. 
-        // Note: TypeFunctions and TypePairs ar handled as TypeLists
+        // Note: TypeFunctions and TypePairs ar handled as TypeArrays
         // * Constants are preferred over lists and variables
         // * Lists are preferred over variables
         // * Given two variables, the first one is chosen. 
@@ -178,7 +245,6 @@ export module TypeInference
             // Variables are least preferred.  
             if (t1 instanceof TypeVariable) 
             {
-                // Two variable have a special path: 
                 return this._updateUnifier(t1, t2, depth);
             }
             // If one is a variable its unifier with the new type. 
@@ -241,8 +307,18 @@ export module TypeInference
                 else 
                     throw new Error("Unhandled kind of type " + expr);
             }
-            else if (expr instanceof TypeArray) 
-                return new TypeArray(expr.types.map((t) => this.getUnifiedType(t, previousVars)));
+            else if (expr instanceof TypeArray) {
+                /*
+                var remapping = {};
+                for (var v of expr.typeVars) 
+                    remapping[v.name] = this.getUnifiedType(v, previousVars);
+                var r = expr.clone(remapping);
+                //r = r.freshParameterNames();
+                */
+                var types = expr.types.map(t => this.getUnifiedType(t, previousVars));
+                var r = new TypeArray(types, false);
+                return r;
+            }
             else
                 throw new Error("Unrecognized kind of type expression " + expr);
         }
@@ -270,7 +346,8 @@ export module TypeInference
             var rtypes : Type[] = [];
             for (var i=0; i < list1.types.length; ++i)
                 rtypes.push(this.unifyTypes(list1.types[i], list2.types[i], depth));
-            return new TypeArray(rtypes);
+            // We just return the first list for now. 
+            return list1; 
         }
 
         // All unifiers that refer to varName as the unifier are pointed to the new unifier 
@@ -286,7 +363,7 @@ export module TypeInference
         // Computes the best unifier between the current unifier and the new variable.        
         // Updates all unifiers which point to a (or to t if t is a TypeVar) to use the new type. 
         _updateUnifier(a:TypeVariable, t:Type, depth:number) : Type {            
-            var u = this._getOrCreateUnifier(a);            
+            var u = this._getOrCreateUnifier(a);          
             u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
             this._updateVariableUnifiers(a.name, u);
             if (t instanceof TypeVariable) {
@@ -319,7 +396,7 @@ export module TypeInference
 
     // Creates a type array from an array of types
     export function typeArray(types:Type[]) : TypeArray {        
-        return new TypeArray(types);
+        return new TypeArray(types, true);
     }
 
     // Creates a type constant 
@@ -328,7 +405,7 @@ export module TypeInference
     }
 
     // Creates a type variable
-    export function typeVar(name:string) : TypeVariable {
+    export function typeVariable(name:string) : TypeVariable {
         return new TypeVariable(name);
     }
 
@@ -391,7 +468,7 @@ export module TypeInference
 
     // Returns true if the type is a polytype
     export function isPolyType(t:Type) {
-        return t instanceof TypeArray && t.typeVarDeclarations.length > 0;
+        return t instanceof TypeArray && t.typeParameterVars.length > 0;
     }
 
     // Returns true if the type is a function that generates a polytype.
@@ -403,48 +480,12 @@ export module TypeInference
 
     // Returns the type of the id function 
     export function idFunction() : TypeArray {
-        var s = typeVar('_');
+        var s = typeVariable('_');
         return functionType(s, s);
-    }
-
-    // When unifying I will need to use this function.
-    export function clone(t:Type) : Type {
-        if (t instanceof TypeVariable)
-            return typeVar(t.name);
-        else if (t instanceof TypeConstant)
-            return typeConstant(t.name);
-        else if (t instanceof TypeArray)
-            return typeArray(t.types.map(clone));
     }
 
     //========================================================
     // Variable name functions
-
-    // Renames all variables with the new
-    export function renameVars(t:Type, names:any) : Type {
-        var r = clone(t);
-        for (var v of descendantTypes(r))
-            if (v instanceof TypeVariable) 
-                v.name = names[v.name];
-        return r;
-    }
-    
-    // Generates fresh variable names for all the variables in the list
-    export function generateFreshNames(t:Type, id:number) {
-        var names = {};
-        for (var v of descendantTypes(t))
-            if (v instanceof TypeVariable) 
-                names[v.name] = v.name + "$" + id;
-        return renameVars(t, names);
-    }
-    
-    // Generates fresh variable names for all the variables in the list
-    export function generateFreshNamesForScheme(t:TypeArray, id:number) {
-        var names = {};
-        for (var v of t.typeVarDeclarations)
-            names[v.name] = v.name + "$" + id;
-        return renameVars(t, names);
-    }
 
     // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
     export function normalizeVarNames(t:Type) : Type {
@@ -453,8 +494,8 @@ export module TypeInference
         for (var dt of descendantTypes(t)) 
             if (dt instanceof TypeVariable) 
                 if (!(dt.name in names))
-                    names[dt.name] = "t" + count++;                
-        return renameVars(t, names);
+                    names[dt.name] = typeVariable("t" + count++);
+        return t.clone(names);
     }
 
     // Compares whether two types are the same after normalizing the type variables. 
@@ -560,8 +601,9 @@ export module TypeInference
         if (!isFunctionType(f)) throw new Error("Expected a function type for f");
         if (!isFunctionType(g)) throw new Error("Expected a function type for g");
         
-        f = generateFreshNames(f, 0) as TypeArray;
-        g = generateFreshNames(g, 1) as TypeArray;
+        var ids = [];
+        f = f.freshParameterNames(ids) as TypeArray;
+        g = g.freshParameterNames(ids) as TypeArray;
 
         if (trace) {
             console.log("f: " + f);
@@ -598,8 +640,8 @@ export module TypeInference
     // Applies a function to input arguments and returns the result 
     export function applyFunction(fxn:TypeArray, args:TypeArray) : TypeArray {
         var u = new Unifier();
-        fxn = clone(fxn) as TypeArray;
-        args = clone(args) as TypeArray;
+        fxn = fxn.clone({});
+        args = fxn.clone({});
         var input = functionInput(fxn);
         var output = functionOutput(fxn);    
         u.unifyTypes(input, args);
@@ -608,7 +650,18 @@ export module TypeInference
 
     // Creates a function type that generates the given type 
     export function quotation(x:Type) : TypeArray {
-        var row = typeVar('_');
+        var row = typeVariable('_');
         return functionType(row, typeArray([x, row]));
+    }
+
+    //=====================================================================
+    // General purpose utility functions
+
+    // Returns only the uniquely named strings
+    export function uniqueStrings(xs:string[]) : string[] {
+        var r = {};
+        for (var x of xs)
+            r[x] = true;
+        return Object.keys(r);
     }
 }

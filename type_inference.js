@@ -25,69 +25,130 @@ var TypeInference;
             // All type varible referenced somewhere by the type, or the type itself if it is a TypeVariable.
             this.typeVars = [];
         }
+        Type.prototype.clone = function (newTypes) {
+            throw new Error("Clone must be overridden in derived class");
+        };
         return Type;
     }());
     TypeInference.Type = Type;
     // A collection of a fixed number of types can be used to represent function types or tuple types. 
     // A list of types is usually encoded as a nested set of type pairs (TypeArrays with two elements).
-    // If a TypeArray declares variables with an implicit for-all qualifier, it is considered a "PolyType". 
-    // The variables which are part of the TypeArray 
-    // All variables are assumed to be uniquely named. When constructed the TypeArray 
-    // will compute which type variables need to be lifted to it's "TypeScheme".
+    // If a TypeArray has Type parameters, quantified unbound type variables, it is considered a "PolyType".
+    // Binding type variables is done through the clone function 
     var TypeArray = (function (_super) {
         __extends(TypeArray, _super);
-        function TypeArray(types) {
+        function TypeArray(types, computeParameters) {
             var _this = _super.call(this) || this;
             _this.types = types;
             // The type variables that are bound to this TypeArray. 
-            // Always a subset of typeVars
-            _this.typeVarDeclarations = [];
+            // Always a subset of typeVars. This could have the same type variable repeated twice. 
+            _this.typeParameterVars = [];
             // Compute all referenced types 
             for (var _i = 0, types_1 = types; _i < types_1.length; _i++) {
                 var t = types_1[_i];
                 _this.typeVars = _this.typeVars.concat(t.typeVars);
             }
-            // Assign all correct type variables to this type scheme
-            for (var i = 0; i < types.length; ++i) {
-                var child = types[i];
+            // Given just a type with type variables the sete of type parameters 
+            // can be inferred based on where they occur in the type tree
+            if (computeParameters)
+                _this.computeParameters();
+            return _this;
+        }
+        // A helper function to copy a parameter list 
+        TypeArray.prototype.cloneParameters = function (dest, from, newTypes) {
+            var params = [];
+            for (var _i = 0, from_1 = from; _i < from_1.length; _i++) {
+                var tv = from_1[_i];
+                var param = newTypes[tv.name];
+                if (param == undefined)
+                    throw new Error("Could not find type parameter: " + tv.name);
+                params.push(param);
+            }
+            dest.typeParameterVars = params;
+        };
+        // Returns a copy of the type array, substituting type variables using the lookup table.        
+        TypeArray.prototype.clone = function (newTypes) {
+            var r = new TypeArray(this.types.map(function (t) { return t.clone(newTypes); }), false);
+            this.cloneParameters(r, this.typeParameterVars, newTypes);
+            return r;
+        };
+        // Returns a copy of the type array creating new parameter names. 
+        TypeArray.prototype.freshParameterNames = function (ids) {
+            if (ids === void 0) { ids = []; }
+            // Create a lookup table for the type parameters with new names 
+            var newTypes = {};
+            var id = ids.length;
+            ids.push[id];
+            for (var _i = 0, _a = this.typeParameterNames; _i < _a.length; _i++) {
+                var tp = _a[_i];
+                newTypes[tp] = new TypeVariable(tp + "$" + id);
+            }
+            // Clone all of the types.             
+            var types = this.types.map(function (t) { return t.clone(newTypes); });
+            // Recursively call "freshParameterNames" on child type arrays as needed. 
+            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParameterNames(ids) : t; });
+            var r = new TypeArray(types, false);
+            // Now recreate the type parameter list
+            this.cloneParameters(r, this.typeParameterVars, newTypes);
+            return r;
+        };
+        Object.defineProperty(TypeArray.prototype, "typeParameterNames", {
+            // A list of the parameter names (without repetition)
+            get: function () {
+                return uniqueStrings(this.typeParameterVars.map(function (tv) { return tv.name; })).sort();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        // Infer which type variables are actually type parameters (universally quantified) 
+        // based on their position.
+        TypeArray.prototype.computeParameters = function () {
+            for (var i = 0; i < this.types.length; ++i) {
+                var child = this.types[i];
                 // Individual type variables are part of this scheme 
                 if (child instanceof TypeVariable)
-                    _reassignAllVarsToScheme(child.name, _this);
+                    _reassignAllTypeVars(child.name, this);
                 else if (child instanceof TypeArray) {
                     // Get the vars of the child type. 
                     // If any of them show up in multiple child arrays, then they 
                     // are part of the parent's child 
-                    for (var _a = 0, _b = child.typeVars; _a < _b.length; _a++) {
-                        var childVar = _b[_a];
-                        if (_isTypeVarUsedElsewhere(_this, childVar.name, i))
-                            _reassignAllVarsToScheme(childVar.name, _this);
+                    for (var _i = 0, _a = child.typeVars; _i < _a.length; _i++) {
+                        var childVar = _a[_i];
+                        if (_isTypeVarUsedElsewhere(this, childVar.name, i))
+                            _reassignAllTypeVars(childVar.name, this);
                     }
                 }
             }
             // Implementation validation step:
             // Assure that the type scheme variables are all in the typeVars 
-            for (var _c = 0, _d = _this.typeVarDeclarations; _c < _d.length; _c++) {
-                var v = _d[_c];
-                var i = _this.typeVars.indexOf(v);
+            for (var _b = 0, _c = this.typeParameterVars; _b < _c.length; _b++) {
+                var v = _c[_b];
+                var i = this.typeVars.indexOf(v);
                 if (i < 0)
                     throw new Error("Internal error: type scheme references a variable that is not marked as referenced by the type variable");
             }
-            return _this;
-        }
-        // Provides a user friendly representation of the type scheme 
-        TypeArray.prototype.typeSchemeToString = function () {
-            var tmp = {};
-            for (var _i = 0, _a = this.typeVarDeclarations; _i < _a.length; _i++) {
-                var v = _a[_i];
-                tmp[v.name] = true;
-            }
-            var r = Object.keys(tmp);
-            if (r.length == 0)
-                return "";
-            return "!" + r.join("!") + ".";
         };
+        Object.defineProperty(TypeArray.prototype, "typeParametersToString", {
+            // Provides a user friendly representation of the type scheme (list of type parameters)
+            get: function () {
+                return this.isPolyType
+                    ? "!" + this.typeParameterNames.join("!") + "."
+                    : "";
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(TypeArray.prototype, "isPolyType", {
+            // Returns true if there is at least one type parameter associated with this type array
+            get: function () {
+                return this.typeParameterVars.length > 0;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        //  A user friendly name 
         TypeArray.prototype.toString = function () {
-            return this.typeSchemeToString() + "(" + this.types.join(' ') + ")";
+            return this.typeParametersToString + "(" + this.types.join(' ') + ")";
         };
         return TypeArray;
     }(Type));
@@ -103,6 +164,12 @@ var TypeInference;
             _this.typeVars.push(_this);
             return _this;
         }
+        TypeVariable.prototype.clone = function (newTypes) {
+            // TODO: if the type is a polytype we will need to generate fresh type variable names.
+            return this.name in newTypes
+                ? newTypes[this.name]
+                : newTypes[this.name] = new TypeVariable(this.name);
+        };
         TypeVariable.prototype.toString = function () {
             return this.name;
         };
@@ -119,6 +186,9 @@ var TypeInference;
         }
         TypeConstant.prototype.toString = function () {
             return this.name;
+        };
+        TypeConstant.prototype.clone = function (newTypes) {
+            return new TypeConstant(this.name);
         };
         return TypeConstant;
     }(Type));
@@ -142,19 +212,21 @@ var TypeInference;
     TypeInference._isTypeVarUsedElsewhere = _isTypeVarUsedElsewhere;
     // Associate the variable with a new type scheme. Removing it from the previous varScheme 
     function _reassignVarScheme(v, t) {
-        // Remove the variable from the previous scheme 
-        if (v.scheme != undefined)
-            v.scheme.typeVarDeclarations = v.scheme.typeVarDeclarations.filter(function (t) { return t.name != v.name; });
-        // Set the new scheme 
-        v.scheme = t;
-        t.typeVarDeclarations.push(v);
+        // Remove the variable from all other type schemes below the given one. 
+        // TODO: horrible complexity, but should work fine. 
+        for (var _i = 0, _a = descendantTypes(t); _i < _a.length; _i++) {
+            var x = _a[_i];
+            if (x instanceof TypeArray)
+                x.typeParameterVars = x.typeParameterVars.filter(function (vd) { return vd.name != v.name; });
+        }
+        t.typeParameterVars.push(v);
     }
     TypeInference._reassignVarScheme = _reassignVarScheme;
     // Associate all variables of the given name in the TypeArray with the TypeArray's scheme
-    function _reassignAllVarsToScheme(varName, t) {
+    function _reassignAllTypeVars(varName, t) {
         t.typeVars.filter(function (v) { return v.name == varName; }).forEach(function (v) { return _reassignVarScheme(v, t); });
     }
-    TypeInference._reassignAllVarsToScheme = _reassignAllVarsToScheme;
+    TypeInference._reassignAllTypeVars = _reassignAllTypeVars;
     // Use this class to unify types that are constrained together.
     var Unifier = (function () {
         function Unifier() {
@@ -165,7 +237,7 @@ var TypeInference;
         }
         // Unify both types, returning the most specific type possible. 
         // When a type variable is unified with something the new unifier is stored. 
-        // Note: TypeFunctions and TypePairs ar handled as TypeLists
+        // Note: TypeFunctions and TypePairs ar handled as TypeArrays
         // * Constants are preferred over lists and variables
         // * Lists are preferred over variables
         // * Given two variables, the first one is chosen. 
@@ -179,7 +251,6 @@ var TypeInference;
                 return t1;
             // Variables are least preferred.  
             if (t1 instanceof TypeVariable) {
-                // Two variable have a special path: 
                 return this._updateUnifier(t1, t2, depth);
             }
             else if (t2 instanceof TypeVariable) {
@@ -232,8 +303,18 @@ var TypeInference;
                 else
                     throw new Error("Unhandled kind of type " + expr);
             }
-            else if (expr instanceof TypeArray)
-                return new TypeArray(expr.types.map(function (t) { return _this.getUnifiedType(t, previousVars); }));
+            else if (expr instanceof TypeArray) {
+                /*
+                var remapping = {};
+                for (var v of expr.typeVars)
+                    remapping[v.name] = this.getUnifiedType(v, previousVars);
+                var r = expr.clone(remapping);
+                //r = r.freshParameterNames();
+                */
+                var types = expr.types.map(function (t) { return _this.getUnifiedType(t, previousVars); });
+                var r = new TypeArray(types, false);
+                return r;
+            }
             else
                 throw new Error("Unrecognized kind of type expression " + expr);
         };
@@ -259,7 +340,8 @@ var TypeInference;
             var rtypes = [];
             for (var i = 0; i < list1.types.length; ++i)
                 rtypes.push(this.unifyTypes(list1.types[i], list2.types[i], depth));
-            return new TypeArray(rtypes);
+            // We just return the first list for now. 
+            return list1;
         };
         // All unifiers that refer to varName as the unifier are pointed to the new unifier 
         Unifier.prototype._updateVariableUnifiers = function (varName, u) {
@@ -305,7 +387,7 @@ var TypeInference;
     TypeInference.typeConsList = typeConsList;
     // Creates a type array from an array of types
     function typeArray(types) {
-        return new TypeArray(types);
+        return new TypeArray(types, true);
     }
     TypeInference.typeArray = typeArray;
     // Creates a type constant 
@@ -314,10 +396,10 @@ var TypeInference;
     }
     TypeInference.typeConstant = typeConstant;
     // Creates a type variable
-    function typeVar(name) {
+    function typeVariable(name) {
         return new TypeVariable(name);
     }
-    TypeInference.typeVar = typeVar;
+    TypeInference.typeVariable = typeVariable;
     // Creates a function type, as a special kind of a TypeArray 
     function functionType(input, output) {
         return typeArray([input, typeConstant('->'), output]);
@@ -380,7 +462,7 @@ var TypeInference;
     TypeInference.descendantTypes = descendantTypes;
     // Returns true if the type is a polytype
     function isPolyType(t) {
-        return t instanceof TypeArray && t.typeVarDeclarations.length > 0;
+        return t instanceof TypeArray && t.typeParameterVars.length > 0;
     }
     TypeInference.isPolyType = isPolyType;
     // Returns true if the type is a function that generates a polytype.
@@ -392,54 +474,12 @@ var TypeInference;
     TypeInference.generatesPolytypes = generatesPolytypes;
     // Returns the type of the id function 
     function idFunction() {
-        var s = typeVar('_');
+        var s = typeVariable('_');
         return functionType(s, s);
     }
     TypeInference.idFunction = idFunction;
-    // When unifying I will need to use this function.
-    function clone(t) {
-        if (t instanceof TypeVariable)
-            return typeVar(t.name);
-        else if (t instanceof TypeConstant)
-            return typeConstant(t.name);
-        else if (t instanceof TypeArray)
-            return typeArray(t.types.map(clone));
-    }
-    TypeInference.clone = clone;
     //========================================================
     // Variable name functions
-    // Renames all variables with the new
-    function renameVars(t, names) {
-        var r = clone(t);
-        for (var _i = 0, _a = descendantTypes(r); _i < _a.length; _i++) {
-            var v = _a[_i];
-            if (v instanceof TypeVariable)
-                v.name = names[v.name];
-        }
-        return r;
-    }
-    TypeInference.renameVars = renameVars;
-    // Generates fresh variable names for all the variables in the list
-    function generateFreshNames(t, id) {
-        var names = {};
-        for (var _i = 0, _a = descendantTypes(t); _i < _a.length; _i++) {
-            var v = _a[_i];
-            if (v instanceof TypeVariable)
-                names[v.name] = v.name + "$" + id;
-        }
-        return renameVars(t, names);
-    }
-    TypeInference.generateFreshNames = generateFreshNames;
-    // Generates fresh variable names for all the variables in the list
-    function generateFreshNamesForScheme(t, id) {
-        var names = {};
-        for (var _i = 0, _a = t.typeVarDeclarations; _i < _a.length; _i++) {
-            var v = _a[_i];
-            names[v.name] = v.name + "$" + id;
-        }
-        return renameVars(t, names);
-    }
-    TypeInference.generateFreshNamesForScheme = generateFreshNamesForScheme;
     // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
     function normalizeVarNames(t) {
         var names = {};
@@ -448,9 +488,9 @@ var TypeInference;
             var dt = _a[_i];
             if (dt instanceof TypeVariable)
                 if (!(dt.name in names))
-                    names[dt.name] = "t" + count++;
+                    names[dt.name] = typeVariable("t" + count++);
         }
-        return renameVars(t, names);
+        return t.clone(names);
     }
     TypeInference.normalizeVarNames = normalizeVarNames;
     // Compares whether two types are the same after normalizing the type variables. 
@@ -552,8 +592,9 @@ var TypeInference;
             throw new Error("Expected a function type for f");
         if (!isFunctionType(g))
             throw new Error("Expected a function type for g");
-        f = generateFreshNames(f, 0);
-        g = generateFreshNames(g, 1);
+        var ids = [];
+        f = f.freshParameterNames(ids);
+        g = g.freshParameterNames(ids);
         if (TypeInference.trace) {
             console.log("f: " + f);
             console.log("g: " + g);
@@ -586,8 +627,8 @@ var TypeInference;
     // Applies a function to input arguments and returns the result 
     function applyFunction(fxn, args) {
         var u = new Unifier();
-        fxn = clone(fxn);
-        args = clone(args);
+        fxn = fxn.clone({});
+        args = fxn.clone({});
         var input = functionInput(fxn);
         var output = functionOutput(fxn);
         u.unifyTypes(input, args);
@@ -596,9 +637,21 @@ var TypeInference;
     TypeInference.applyFunction = applyFunction;
     // Creates a function type that generates the given type 
     function quotation(x) {
-        var row = typeVar('_');
+        var row = typeVariable('_');
         return functionType(row, typeArray([x, row]));
     }
     TypeInference.quotation = quotation;
+    //=====================================================================
+    // General purpose utility functions
+    // Returns only the uniquely named strings
+    function uniqueStrings(xs) {
+        var r = {};
+        for (var _i = 0, xs_1 = xs; _i < xs_1.length; _i++) {
+            var x = xs_1[_i];
+            r[x] = true;
+        }
+        return Object.keys(r);
+    }
+    TypeInference.uniqueStrings = uniqueStrings;
 })(TypeInference = exports.TypeInference || (exports.TypeInference = {}));
 //# sourceMappingURL=type_inference.js.map

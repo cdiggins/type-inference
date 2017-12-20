@@ -102,7 +102,7 @@ var CatLanguage;
             throw new Error("Missing AST node");
         switch (ast.name) {
             case "typeVar":
-                return type_inference_1.TypeInference.typeVar(ast.allText.substr(1));
+                return type_inference_1.TypeInference.typeVariable(ast.allText.substr(1));
             case "typeConstant":
                 return type_inference_1.TypeInference.typeConstant(ast.allText);
             case "typeFunc":
@@ -160,7 +160,7 @@ var CatLanguage;
     CatLanguage.dataType = dataType;
     // Creates a Cat function type: adding the implicit row variable 
     function createCatFunctionType(inputs, outputs) {
-        var row = type_inference_1.TypeInference.typeVar('_');
+        var row = type_inference_1.TypeInference.typeVariable('_');
         inputs.push(row);
         outputs.push(row);
         return type_inference_1.TypeInference.functionType(type_inference_1.TypeInference.typeConsList(inputs), type_inference_1.TypeInference.typeConsList(outputs));

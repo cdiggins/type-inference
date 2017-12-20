@@ -100,7 +100,7 @@ export module CatLanguage
         switch (ast.name)
         {
             case "typeVar":
-                return ti.typeVar(ast.allText.substr(1));
+                return ti.typeVariable(ast.allText.substr(1));
             case "typeConstant":
                 return ti.typeConstant(ast.allText);
             case "typeFunc":
@@ -162,7 +162,7 @@ export module CatLanguage
 
     // Creates a Cat function type: adding the implicit row variable 
     export function createCatFunctionType(inputs:ti.Type[], outputs:ti.Type[]) : ti.TypeArray {
-        var row = ti.typeVar('_');
+        var row = ti.typeVariable('_');
         inputs.push(row); 
         outputs.push(row);
         return ti.functionType(ti.typeConsList(inputs), ti.typeConsList(outputs));

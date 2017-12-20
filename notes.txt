@@ -539,3 +539,11 @@ Todo:
 
 My theory is that whenever I constrain a type array to a type variable, even if it is the same, I have 
 to generate new type-variable names for the type schemes. 
+
+The problem has to do with when I'm generating a TypeScheme. 
+
+The TypeSchemes are generated afterwards. Perhaps I shouldn't be generating a type scheme, and instead re-using the existing one? 
+
+I could try that. 
+
+//https://ocharles.org.uk/blog/guest-posts/2014-12-18-rank-n-types.html
