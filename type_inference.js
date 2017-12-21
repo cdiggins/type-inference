@@ -72,8 +72,17 @@ var TypeInference;
             this.cloneParameters(r, this.typeParameterVars, newTypes);
             return r;
         };
+        TypeArray.prototype.freshVariableNames = function (id) {
+            var newTypes = {};
+            for (var _i = 0, _a = descendantTypes(this); _i < _a.length; _i++) {
+                var t = _a[_i];
+                if (t instanceof TypeVariable)
+                    newTypes[t.name] = new TypeVariable(t.name + "$" + id);
+            }
+            return this.clone(newTypes);
+        };
         // Returns a copy of the type array creating new parameter names. 
-        TypeArray.prototype.freshParameterNames = function (id) {
+        TypeArray.prototype.freshParamNames = function (id) {
             // Create a lookup table for the type parameters with new names 
             var newTypes = {};
             for (var _i = 0, _a = this.typeParameterNames; _i < _a.length; _i++) {
@@ -83,7 +92,7 @@ var TypeInference;
             // Clone all of the types.             
             var types = this.types.map(function (t) { return t.clone(newTypes); });
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParameterNames(id) : t; });
+            types = types.map(function (t) { return t instanceof TypeArray ? t.freshVariableNames(id) : t; });
             var r = new TypeArray(types, false);
             // Now recreate the type parameter list
             this.cloneParameters(r, this.typeParameterVars, newTypes);
@@ -593,8 +602,8 @@ var TypeInference;
             throw new Error("Expected a function type for f");
         if (!isFunctionType(g))
             throw new Error("Expected a function type for g");
-        f = f.freshParameterNames(0);
-        g = g.freshParameterNames(1);
+        f = f.freshVariableNames(0);
+        g = g.freshVariableNames(1);
         if (TypeInference.trace) {
             console.log("f: " + f);
             console.log("g: " + g);

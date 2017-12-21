@@ -60,8 +60,16 @@ export module TypeInference
             return r;
         }
 
+        freshVariableNames(id:number) : TypeArray {
+            var newTypes:ITypeLookup = {};
+            for (var t of descendantTypes(this))
+                if (t instanceof TypeVariable)
+                    newTypes[t.name] = new TypeVariable(t.name + "$" + id);
+            return this.clone(newTypes);
+        }
+            
         // Returns a copy of the type array creating new parameter names. 
-        freshParameterNames(id:number) : TypeArray {
+        freshParamNames(id:number) : TypeArray {
             // Create a lookup table for the type parameters with new names 
             var newTypes:ITypeLookup = {};
             for (var tp of this.typeParameterNames)
@@ -71,7 +79,7 @@ export module TypeInference
             var types = this.types.map(t => t.clone(newTypes));
 
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(t => t instanceof TypeArray ? t.freshParameterNames(id) : t);
+            types = types.map(t => t instanceof TypeArray ? t.freshParamNames(id) : t);
             var r = new TypeArray(types, false);
 
             // Now recreate the type parameter list
@@ -604,8 +612,8 @@ export module TypeInference
         if (!isFunctionType(f)) throw new Error("Expected a function type for f");
         if (!isFunctionType(g)) throw new Error("Expected a function type for g");
         
-        f = f.freshParameterNames(0) as TypeArray;
-        g = g.freshParameterNames(1) as TypeArray;
+        f = f.freshVariableNames(0) as TypeArray;
+        g = g.freshVariableNames(1) as TypeArray;
 
         if (trace) {
             console.log("f: " + f);

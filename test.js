@@ -72,7 +72,7 @@ function testClone(input, fail) {
         console.log("Original   : " + t);
         t = t.clone({});
         console.log("Cloned     : " + t);
-        t = t.freshParameterNames(0);
+        t = t.freshVariableNames(0);
         console.log("Fresh vars : " + t);
         t = type_inference_1.TypeInference.normalizeVarNames(t);
         console.log("Normalized : " + t);
