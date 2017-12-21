@@ -61,11 +61,9 @@ export module TypeInference
         }
 
         // Returns a copy of the type array creating new parameter names. 
-        freshParameterNames(ids:number[] = []) : TypeArray {
+        freshParameterNames(id:number) : TypeArray {
             // Create a lookup table for the type parameters with new names 
             var newTypes:ITypeLookup = {};
-            var id = ids.length;
-            ids.push[id];
             for (var tp of this.typeParameterNames)
                 newTypes[tp] = new TypeVariable(tp + "$" + id);
             
@@ -73,7 +71,7 @@ export module TypeInference
             var types = this.types.map(t => t.clone(newTypes));
 
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(t => t instanceof TypeArray ? t.freshParameterNames(ids) : t);
+            types = types.map(t => t instanceof TypeArray ? t.freshParameterNames(id) : t);
             var r = new TypeArray(types, false);
 
             // Now recreate the type parameter list
@@ -90,6 +88,11 @@ export module TypeInference
         // Infer which type variables are actually type parameters (universally quantified) 
         // based on their position.
         computeParameters() {
+            this.typeParameterVars = [];
+
+            // Recursively compute the parameters for base types
+            this.types.forEach(t => { if (t instanceof TypeArray) t.computeParameters(); });
+
             for (var i=0; i < this.types.length; ++i) {
                 var child = this.types[i];
 
@@ -601,9 +604,8 @@ export module TypeInference
         if (!isFunctionType(f)) throw new Error("Expected a function type for f");
         if (!isFunctionType(g)) throw new Error("Expected a function type for g");
         
-        var ids = [];
-        f = f.freshParameterNames(ids) as TypeArray;
-        g = g.freshParameterNames(ids) as TypeArray;
+        f = f.freshParameterNames(0) as TypeArray;
+        g = g.freshParameterNames(1) as TypeArray;
 
         if (trace) {
             console.log("f: " + f);
@@ -624,6 +626,9 @@ export module TypeInference
         if (trace) {
             console.log(e.state());
         }
+        //r = r.freshParameterNames(0);
+        // Recompute parameters.
+        r.computeParameters();
         return r;        
     }
 

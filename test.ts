@@ -78,7 +78,7 @@ function testClone(input:string, fail:boolean=false) {
         console.log("Original   : " + t);
         t = t.clone({})  as ti.TypeArray;
         console.log("Cloned     : " + t);
-        t = t.freshParameterNames() as ti.TypeArray;
+        t = t.freshParameterNames(0) as ti.TypeArray;
         console.log("Fresh vars : " + t);
         t = ti.normalizeVarNames(t) as ti.TypeArray;
         console.log("Normalized : " + t);

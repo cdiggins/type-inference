@@ -73,12 +73,9 @@ var TypeInference;
             return r;
         };
         // Returns a copy of the type array creating new parameter names. 
-        TypeArray.prototype.freshParameterNames = function (ids) {
-            if (ids === void 0) { ids = []; }
+        TypeArray.prototype.freshParameterNames = function (id) {
             // Create a lookup table for the type parameters with new names 
             var newTypes = {};
-            var id = ids.length;
-            ids.push[id];
             for (var _i = 0, _a = this.typeParameterNames; _i < _a.length; _i++) {
                 var tp = _a[_i];
                 newTypes[tp] = new TypeVariable(tp + "$" + id);
@@ -86,7 +83,7 @@ var TypeInference;
             // Clone all of the types.             
             var types = this.types.map(function (t) { return t.clone(newTypes); });
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParameterNames(ids) : t; });
+            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParameterNames(id) : t; });
             var r = new TypeArray(types, false);
             // Now recreate the type parameter list
             this.cloneParameters(r, this.typeParameterVars, newTypes);
@@ -103,6 +100,10 @@ var TypeInference;
         // Infer which type variables are actually type parameters (universally quantified) 
         // based on their position.
         TypeArray.prototype.computeParameters = function () {
+            this.typeParameterVars = [];
+            // Recursively compute the parameters for base types
+            this.types.forEach(function (t) { if (t instanceof TypeArray)
+                t.computeParameters(); });
             for (var i = 0; i < this.types.length; ++i) {
                 var child = this.types[i];
                 // Individual type variables are part of this scheme 
@@ -592,9 +593,8 @@ var TypeInference;
             throw new Error("Expected a function type for f");
         if (!isFunctionType(g))
             throw new Error("Expected a function type for g");
-        var ids = [];
-        f = f.freshParameterNames(ids);
-        g = g.freshParameterNames(ids);
+        f = f.freshParameterNames(0);
+        g = g.freshParameterNames(1);
         if (TypeInference.trace) {
             console.log("f: " + f);
             console.log("g: " + g);
@@ -611,6 +611,9 @@ var TypeInference;
         if (TypeInference.trace) {
             console.log(e.state());
         }
+        //r = r.freshParameterNames(0);
+        // Recompute parameters.
+        r.computeParameters();
         return r;
     }
     TypeInference.composeFunctions = composeFunctions;

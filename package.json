@@ -15,14 +15,12 @@
     "url": "https://github.com/cdiggins/type-inference.git"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "mocha tests/mocha_runner.js"
+    "build": "tsc"
   },
   "dependencies": {
     "myna-parser": ">=2.4"
   },
   "devDependencies": {
-    "mocha": "~3.4",
     "typescript": "~2.0"
   }
 }
