@@ -1,5 +1,6 @@
 import { TypeInference as ti } from "./type_inference";
 import { Myna as m } from "./node_modules/myna-parser/myna";
+//import m = require("./node_modules/myna-parser/myna");
 
 var verbose = false;
 
@@ -45,14 +46,14 @@ function runTest(f:() => any, testName:string, expectFail:boolean = false) {
     }
 }
 
-export function stringToType(input:string) : ti.Type {
+function stringToType(input:string) : ti.Type {
     var ast = parser(input);
     if (ast.end != input.length) 
         throw new Error("Only part of input was consumed");
     return astToType(ast);
 }
 
-export function astToType(ast:m.AstNode) : ti.Type {
+function astToType(ast) : ti.Type {
     if (!ast)
         return null;
     switch (ast.name)
@@ -213,7 +214,7 @@ function regressionTestComposition() {
         ["apply dup", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (t1 (t1 t2)))"],
         ["apply swap", "!t1!t2!t3.(!t0.((t0 -> (t1 (t2 t3))) t0) -> (t2 (t1 t3)))"],
         ["apply pop", "!t2.(!t0.((t0 -> !t1.(t1 t2)) t0) -> t2)"],
-        ["compose apply", "!t1.(!t0.((t0 -> t1) !t3.(!t2.(t2 -> t0) t3)) -> t1)"],
+        ["compose apply", "!t1.(!t0.((t0 -> t1) !t2.((t2 -> t0) t2)) -> t1)"],
         ["compose compose", "!t1!t3!t4.(!t0.((t0 -> t1) !t2.((t2 -> t0) ((t3 -> t2) t4))) -> ((t3 -> t1) t4))"],
         ["compose quote", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> (!t4.(t4 -> ((t2 -> t1) t4)) t3))"],
         ["compose dup", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) ((t2 -> t1) t3)))"],
@@ -270,6 +271,7 @@ regressionTestComposition();
 
 // The troublesome type.
 //testComposition(coreTypes['quote'], coreTypes['dup']);
+//testComposition(coreTypes['quote'], coreTypes['apply']);
 
 declare var process : any;
 process.exit();

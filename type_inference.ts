@@ -246,7 +246,7 @@ export module TypeInference
         // * Constants are preferred over lists and variables
         // * Lists are preferred over variables
         // * Given two variables, the first one is chosen. 
-        unifyTypes(t1:Type, t2:Type, depth:number=0) : Type {
+        unifyTypes(t1:Type, t2:Type, depth:number=0) : Type {            
             if (trace)
                 console.log(`Unification depth ${depth} of ${t1} and ${t2}`);
             if (!t1 || !t2) 
@@ -377,14 +377,26 @@ export module TypeInference
         // Updates all unifiers which point to a (or to t if t is a TypeVar) to use the new type. 
         _updateUnifier(a:TypeVariable, t:Type, depth:number) : Type {            
             var u = this._getOrCreateUnifier(a);          
+            if (t instanceof TypeVariable) 
+                t = this._getOrCreateUnifier(t).unifier;
+
+            u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
+            this._updateVariableUnifiers(a.name, u);
+            if (t instanceof TypeVariable) 
+                this._updateVariableUnifiers(t.name, u);
+
+            return u.unifier;
+            /*
+            var u = this._getOrCreateUnifier(a);          
             u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
             this._updateVariableUnifiers(a.name, u);
             if (t instanceof TypeVariable) {
                 // Make sure a unifier is created
-                this._getOrCreateUnifier(t);
+                var u2 = this._getOrCreateUnifier(t);
                 this._updateVariableUnifiers(t.name, u);
             }
             return u.unifier;
+            */
         }
 
         // Gets or creates a type unifiers for a type variables
@@ -635,10 +647,14 @@ export module TypeInference
         var r = functionType(input, output);
         if (trace) {
             console.log(e.state());
+            console.log("Intermediate result: " + r)
         }
         //r = r.freshParameterNames(0);
         // Recompute parameters.
         r.computeParameters();
+        if (trace) {
+            console.log("Final result: " + r);
+        }
         return r;        
     }
 

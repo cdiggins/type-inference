@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var type_inference_1 = require("./type_inference");
 var myna_1 = require("./node_modules/myna-parser/myna");
+//import m = require("./node_modules/myna-parser/myna");
 var verbose = false;
 function registerGrammars() {
     // This is a more verbose type grammar than the one used in Cat. 
@@ -45,7 +46,6 @@ function stringToType(input) {
         throw new Error("Only part of input was consumed");
     return astToType(ast);
 }
-exports.stringToType = stringToType;
 function astToType(ast) {
     if (!ast)
         return null;
@@ -64,7 +64,6 @@ function astToType(ast) {
             throw new Error("Unrecognized type expression: " + ast.name);
     }
 }
-exports.astToType = astToType;
 function testClone(input, fail) {
     if (fail === void 0) { fail = false; }
     runTest(function () {

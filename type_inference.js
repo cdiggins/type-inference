@@ -368,14 +368,24 @@ var TypeInference;
         // Updates all unifiers which point to a (or to t if t is a TypeVar) to use the new type. 
         Unifier.prototype._updateUnifier = function (a, t, depth) {
             var u = this._getOrCreateUnifier(a);
+            if (t instanceof TypeVariable)
+                t = this._getOrCreateUnifier(t).unifier;
+            u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
+            this._updateVariableUnifiers(a.name, u);
+            if (t instanceof TypeVariable)
+                this._updateVariableUnifiers(t.name, u);
+            return u.unifier;
+            /*
+            var u = this._getOrCreateUnifier(a);
             u.unifier = this._chooseBestUnifier(u.unifier, t, depth);
             this._updateVariableUnifiers(a.name, u);
             if (t instanceof TypeVariable) {
                 // Make sure a unifier is created
-                this._getOrCreateUnifier(t);
+                var u2 = this._getOrCreateUnifier(t);
                 this._updateVariableUnifiers(t.name, u);
             }
             return u.unifier;
+            */
         };
         // Gets or creates a type unifiers for a type variables
         Unifier.prototype._getOrCreateUnifier = function (t) {
@@ -621,10 +631,14 @@ var TypeInference;
         var r = functionType(input, output);
         if (TypeInference.trace) {
             console.log(e.state());
+            console.log("Intermediate result: " + r);
         }
         //r = r.freshParameterNames(0);
         // Recompute parameters.
         r.computeParameters();
+        if (TypeInference.trace) {
+            console.log("Final result: " + r);
+        }
         return r;
     }
     TypeInference.composeFunctions = composeFunctions;
