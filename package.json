@@ -1,7 +1,7 @@
 {
   "name": "type-inference",
-  "version": "0.2.0",
-  "description": "A type inference algorithm written in TypeScript",
+  "version": "0.3.0",
+  "description": "A higher-rank type inference algorithm written in TypeScript",
   "main": "type-inference.js",
   "homepage": "https://github.com/cdiggins/type-inference",
   "bugs": "https://github.com/cdiggins/type-inference/issues",
@@ -19,8 +19,5 @@
   },
   "dependencies": {
     "myna-parser": ">=2.4"
-  },
-  "devDependencies": {
-    "typescript": "~2.0"
   }
 }

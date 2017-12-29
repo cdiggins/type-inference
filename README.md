@@ -1,45 +1,85 @@
-# Type Inference Algorithm 
+# Another Type Inference Algorithm 
 
-This is a practical implementation in TypeScript of a type inference algorithm that can infer higher-kind polymorphic types without user supplied type annotations. 
+This is a practical implementation in TypeScript of a novel higher-rank type inference algorithm that can infer non-recursive higher-kind polymorphic types without user supplied type annotations. 
 
-## Motivation
+# Motivation 
 
-Most programming languages with support for generic types (aka polymorphic types) don't allow programmers to use generic types as type parameters, at least not until they have supplied types for it's parameters effectively making a non-generic instantiation of the type. Described another way these languages (including Haskell without extensions) only support rank-1 polymorphism. 
+Most programming languages with support for generic types (*polytypes* or polymorphic types) don't allow programmers to use generic types as type parameters. Instead generic types have to be converted to non-polymorphic types (*monotypes*) by supplying non-polymorphic types for each type parameter before they can be used. Described another way these languages only support rank-1 polymorphism, also called *prenex polymorphism*.
 
-Peyton Jones et al. state that "in practice programmers are more than willing to add type annotations
-to guide the type inference engine, and to document their code" but it can place severe restrictions on newcomers to an advanced language if they cannot express simple algorithms, without having to understand 
+Most strongly typed languages with type inference can only infer types for certain expressions are hard to learn for new users, because they quicklyk find themselves in situiations where they have to understand the intricacies of the type system, and how to write complex types in situiations that would be easy to use in a dynamic language (e.g. Python and JavaScript).  
 
-## Type Inference for Higher Rank Polymorphism 
+Full type inference in a programming language can give programmers the convenience and smooth learning curve of a dynamic programming language with the safety and efficiency of a strongly typed programming language. 
 
-Languages that support type inference in the presence of higher-rank polymorphism is very rare. In 2007 Peyton Jones, Vytiniotis, Weirich, and Shields wrote a lengthy article for the Journal of Functional Programming called [Practical type inference for arbitrary-rank types](http://research.microsoft.com/en-us/um/people/simonpj/papers/higher-rank/putting.pdf )
+This algorithm is inspired by Hindley-Milner-Damas type inference, aka [Algorithm W](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system), but Algorithm W only works for on rank-1 polymorphic types. In other words type parameters can only be bound to monotypes (non-polymorphic types). 
 
-In it they state: 
+For more informationI sugsee [the article on Parametric Polymorphism on Wikipedia](https://en.wikipedia.org/wiki/Parametric_polymorphism).
 
-> Complete type inference is known to be undecidable for higher-rank (impredicative) type systems
+## Implementation Overview
 
-This is a result I believe proven by Frank Pfenning, but I need to check my notes.
+The basic algorithm is as follows:
 
-Being undecidable does not mean unimplementable: it just we just can't guarantee termination in the general case. That said, restricted forms of higher-rank polymorphic type systems (e.g. rank-2 polymorphism) haven in fact been proven to be decidable. 
+* Step 1 (renaming): Uniquely name all type variables 
+* Step 2 (forall inference): Infer the position of all forall quantifiers in type arrays
+* Step 3 (unify constraint): Given a constraint between two types find a unifier for each variable.
+* Step 4 (substitution): Given a type signature compute a new signature by subsituting all type variables in the given type signature with the appropriate unifying type.
+* Step 5 (forall inference): Infer the position of all forall quanitifer in resulting type.
 
-I have not proven that my algorithm terminates, only validated that it terminates on an extensive test suite. 
+During step 4 (substitution), if a polytype is substituted for a type variable more than once each subsequent instance is given a new set of names for the generic type parameters.
 
-There are two restrictions on the proposed type system that could potentially affect whether or not type inference is in fact decidable 
+## Details 
 
-1. recursive types are not supported
-2. universally quantified variables are not allowed to appear solely on the right-side of a function
+Types are represented by the `Type` class. There are three kinds of types derived from this class: 
 
-I would be interested in collaborating with someone with theroem proving experience to explore this further. 
+1. `TypeConstant` - Represents monotypes (simple non-plymorphic types)
+2. `TypeVariable` - Represents a universally quantified type variable, also known as a generic type parameter 
+3. `TypeArray` - A fixed-size collection of types that may or may not have universally quantified type parameters
 
-## Relation to Algorithm W
+Other kinds of types, like functions and arrays, are encoded as special cases of type arrays. 
 
-This is inspired by Hindley-Milner-Damas type inference, aka Algorithm W, but is a different type algorithm, and a more complete type system than Hindley-Milner. Algorithm W only works for prenex polymorphism (aka rank-1 polymorphic types). In other words type parameters can only be bound to monotypes. 
+## Illegal Types
 
-The significant contibute In the proposed type system is that any type variable can be bound to a polytype. There is a restriction imposed that type variables can only be bounding 
+Any type where the type variable occurs only on the right-side of a function, or that contains an illegal type, is considered an illegal type. Recursive types are not supported. They will be identified by the name 
 
-https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system
+## Encoding Function Types 
 
+A function is encoded as a type array with 3 elements: the first element is a type list representing the arguments, the second element a type constant (`->`) and the third is a type list that represents the function return types. 
 
-## The Core Type System
+## Encoding Type Lists 
+
+A type list is encoded a pair of types (a type array of two elements) where the first element is the head of the list, and the second element is the rest of the list. Usually the type in the last position is a type variable which enables two type lists with different number of elements to be unified. 
+
+## Encoding Array Types
+
+An array type (not to be confused with an array of types) can be encoded as a type 
+
+## Inferring Row Polymorphism
+
+When unifying two type lists with different lengths but the shorter has a type variable in the last poistion, the unification algorithm will "just work" treating the final type variable as a row variable. Encoding all function arguments and function results as type lists with type variables. 
+
+## Inference of Location of For-all Quantifiers
+
+Given a type array with type variables, the algorithm will infer the precise location of the for-all quantifiers by assigning them to the inner-most type array that contains all references to that type variable. This is done in the function `computeSchemes`.
+
+For example consider the quote function 
+
+```
+quote   ( as written ) : (('a 'b) -> (('c -> 'a 'c) 'b))
+quote   ( as implied ) : !a!b.((a b) -> (!c.(c -> a c) b))
+```
+
+## Polytype
+
+A polytype is a type with universally quantified type variables (aka generic type parameters). In the type system, only type arrays can be polytypes. 
+
+## Monotype
+
+A monotype is a non-polymorphic type, like `Num` or `Bool`. 
+
+# Usage with Functional Stack-Based Languages / Concatenative Languages
+
+The type inference algorithm was developed initially for use with the [Cat programming language](http://www.cat-language.com) which is a strongly typed functional stack-based language, also called a concatenative language, based on [Joy](https://en.wikipedia.org/wiki/Joy_(programming_language).
+
+## Example Function Types 
 
 ```
 pop     : !a!b.((a b) -> b)
@@ -50,40 +90,3 @@ quote   : !a!b.((a b) -> (!c.(c -> a c) b)
 compose : !a!b!c!d.(((b -> c) ((a -> b) d)) -> ((a -> c) d)
 ```
 
-## Inference of Location of Polymorphism
-
-Given a type array with type variables, the algorithm will infer the precise location of the forall quantifiers by assigning them to the inner-most type array that contains all references to that type variable. This is done in the function `computeSchemes`.
-
-```
-quote   : (('a 'b) -> (('c -> 'a 'c) 'b)
-```
-
-## Kinds of Types
-
-The type system supports the following three categories of types:
-
-1. Type constants 
-2. Type variables 
-3. Type array - which may or may not be polymorphic, or contain a polymorphic type 
-
-## Illegal Types
-
-A type variable that occurs only on the right-side of a function is illegal. 
-
-## What is a Polytype
-
-A polytype is a type with universally quantified type variables (aka generic type parameters). In the type system, only type arrays can be polytypes. 
-
-## What is a Monotype
-
-A constant type 
-
-## Encoding Functions 
-
-
-## Open Questions
-
-1. How does the type system presented here map to System F? 
-2. Are these truly higher-rank polymorphic types?
-
-Recursive types are detected, but cannot be unified with other types. 

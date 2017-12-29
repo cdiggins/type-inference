@@ -557,3 +557,152 @@ b0 = a1
 (a0 a1) -> (a0 a1)
 
 Missing some constraints
+
+//==
+
+This algorithm is more powerful than most type inference algorithms which are typically variations on the Hindley-Milner-Damas type reconstruction, aka Algorithm W, which can only infer types for first rank polymorphic types.  
+
+//==
+
+In it they state: 
+//
+> Complete type inference is known to be undecidable for higher-rank (impredicative) type systems
+
+This is a result I believe proven by Frank Pfenning, but I need to check my notes.
+
+Being undecidable does not mean unimplementable: it just we just can't guarantee termination in the general case. That said, restricted forms of higher-rank polymorphic type systems (e.g. rank-2 polymorphism) haven in fact been proven to be decidable. 
+
+I have not proven that my algorithm terminates, only validated that it terminates on an extensive test suite. 
+
+//== 
+
+In 2007 Peyton Jones, Vytiniotis, Weirich, and Shields wrote a lengthy article for the Journal of Functional Programming called [Practical type inference for arbitrary-rank types](http://research.microsoft.com/en-us/um/people/simonpj/papers/higher-rank/putting.pdf )
+
+//==
+
+What can you do with row-polymorphic functions? 
+
+
+Consider a function like: 
+
+    map(xs, f) : (T[], (T, int) -> U) -> U[];
+
+We can pass it a function with fewer arguments:
+
+    g :  (T -> U) 
+
+//==
+
+I could pass it a polymorphic generating function as well. 
+
+So what about things like: 
+
+tuple<T> + tuple<T> =
+
+Well I think I need a fixed array size type. 
+
+(T [] n) Is the type of a fixed array size. 
+
+I want this to be compatible with T []
+
+So? 
+
+Dynamic array encoding: (T ([] _))
+Fixed array encoding: (T ([] (n _)))
+
+This would allow me to use a fixed array encoding wherever a dynamic array is desired, but to never lose it. 
+
+The type of an integer is: 
+
+Can I do that for numerical encodings? 
+
+(number (int, (32)))
+(number (float, (32)))
+
+//==
+
+What are the primitive operations of Heron? 
+
+So there are a lot of types. Well the fixed array types are important. 
+
+This approach is interesting, because I am ecnoding a fixed array as an additional constraint. The thing about constraints is that the order 
+shouldn't matter. We could scan the list: then effectively we have a different constraint rule for constrained types. 
+
+I would suggest that "(constraint ())" could be like a porperty? Or maybe there is another way to do it? 
+
+//==
+
+# Background
+
+There are many implementations and tutorials on Hindley-Milner-Damas type inference, a.k.a. algorithm W, which is limited to rank-1 polymorphic types. This implementation can 
+
+//==
+
+## Type Operations in a Stack Language
+
+In a stack language with no named variables every program fragment represents a function on a stack. Two program frFunctions have the general form: `(A -> B)` for some tuple `A` to a new tuple `B`. 
+
+there are two type operations:
+
+1. Quotation (aka abstraction)
+2. Composition
+
+### Quotation (Abstraction)
+
+`TQuotation(f : (A -> B)) = !S.(S -> !A!B.(A -> B) S))` 
+
+The type of the quotation of any function with the type from stack A to stack B is to generate a new function that goes from stack S to stack S with the function f on top of it. 
+
+### Composition
+
+2. TComposition(f : (B -> C), g : (A -> B)) = (A -> C)
+
+The type resulting from composing two functions f and g is that the input of f and the output of g have to be unified. The resulting function type has the input of g and the output of B.
+
+## Type Operations in a Language with Names
+
+1. TAbstraction(v, f)
+2. TApplication(f, x)
+
+
+For simplicity consider the example where each function 
+
+The unifying type is a type that represents the most specific type possible: 
+
+//==
+
+### Unification
+
+The rules for unification are as follows:
+
+1. Two type arrays can be unified only if they are the same length
+2. Two type constants cannot be unified if they 
+
+Unification(t1, t2) 
+
+* If t1 is not a unifying variable
+  * if t1 has an associated unifier 
+  * result = Unify(HasUnifier(t1) ? GetUnifier(t1) : CreateUnifyingVariable(t1), t2);
+  * Associate Unifier(t1, result)
+  * 
+* else if IsUnifyingVariable(t1)
+  * if !IsUnifyingVariable(t2)
+      return Unify(Has)
+
+
+Type constant with Type constant 
+
+When unifying a type variable with a type, the unifying type is used instead of the type variable.
+
+Unifying t+
+
+The type inference algorithm works by creating and maintaining a list of "unifiers" for each type variable. 
+
+type equivalency constraints. Every time a new constraint is introduced a type is chosen that is said to "unify" the two types.
+
+//==
+
+## Unification 
+
+A constraint expresses an equivalency between two types. Two type arra
+

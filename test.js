@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var type_inference_1 = require("./type_inference");
 var myna_1 = require("./node_modules/myna-parser/myna");
-//import m = require("./node_modules/myna-parser/myna");
 var verbose = false;
 function registerGrammars() {
     // This is a more verbose type grammar than the one used in Cat. 
@@ -104,28 +103,6 @@ var coreTypes = {
     swap: "(('a ('b 'c)) -> ('b ('a 'c)))",
     pop: "(('a 'b) -> 'b)",
 };
-function runParseTests() {
-    testParse("abc");
-    testParse("'abc");
-    testParse("()");
-    testParse("( )");
-    testParse("(a)");
-    testParse("('a)");
-    testParse("(array int)");
-    testParse("(array 't)");
-    testParse("(fun int 't ())");
-    testParse("(fun int float)");
-    testParse("(()())");
-    testParse("(fun (int (int 'a)) (float (float 'a)))");
-    testParse("(()()", true);
-    testParse("()()", true);
-    testParse("()())", true);
-    testParse("(a b", true);
-    testParse("a b", true);
-    testParse("a b)", true);
-    for (var k in coreTypes)
-        testParse(coreTypes[k]);
-}
 function testComposition(a, b, fail) {
     if (fail === void 0) { fail = false; }
     runTest(function () {
@@ -184,7 +161,7 @@ function regressionTestComposition() {
         ["apply dup", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (t1 (t1 t2)))"],
         ["apply swap", "!t1!t2!t3.(!t0.((t0 -> (t1 (t2 t3))) t0) -> (t2 (t1 t3)))"],
         ["apply pop", "!t2.(!t0.((t0 -> !t1.(t1 t2)) t0) -> t2)"],
-        ["compose apply", "!t1.(!t0.((t0 -> t1) !t3.(!t2.(t2 -> t0) t3)) -> t1)"],
+        ["compose apply", "!t1.(!t0.((t0 -> t1) !t2.((t2 -> t0) t2)) -> t1)"],
         ["compose compose", "!t1!t3!t4.(!t0.((t0 -> t1) !t2.((t2 -> t0) ((t3 -> t2) t4))) -> ((t3 -> t1) t4))"],
         ["compose quote", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> (!t4.(t4 -> ((t2 -> t1) t4)) t3))"],
         ["compose dup", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) ((t2 -> t1) t3)))"],
@@ -231,7 +208,6 @@ function regressionTestComposition() {
         }
     }
 }
-//runParseTests()
 //runCloneTests();
 //printCoreTypes();
 //testComposingCoreOps();

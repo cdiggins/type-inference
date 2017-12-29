@@ -1,5 +1,5 @@
 // A Type Inference Algorithm by Christopher Digginss  
-// This a novel type inference algorithm that provides support for full inference of higher rank polymorphic types
+// A type inference algorithm that provides support for full inference of non-recursive higher rank polymorphic types
 
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
@@ -663,7 +663,7 @@ export module TypeInference
         if (fxns.length == 0)
             return idFunction();        
         var t = fxns[0];
-        for (var i=0; i < fxns.length; ++i) 
+        for (var i=1; i < fxns.length; ++i) 
             t = composeFunctions(t, fxns[i]);
         return t;
     }

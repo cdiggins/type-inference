@@ -1,6 +1,5 @@
 import { TypeInference as ti } from "./type_inference";
 import { Myna as m } from "./node_modules/myna-parser/myna";
-//import m = require("./node_modules/myna-parser/myna");
 
 var verbose = false;
 
@@ -116,32 +115,6 @@ var coreTypes = {
     swap    : "(('a ('b 'c)) -> ('b ('a 'c)))",
     pop     : "(('a 'b) -> 'b)",
 };
-
-function runParseTests()
-{
-    testParse("abc");
-    testParse("'abc");
-    testParse("()");
-
-    testParse("( )");
-    testParse("(a)");
-    testParse("('a)");
-    testParse("(array int)");
-    testParse("(array 't)");
-    testParse("(fun int 't ())");
-    testParse("(fun int float)");
-    testParse("(()())");
-    testParse("(fun (int (int 'a)) (float (float 'a)))");
-    testParse("(()()", true);
-    testParse("()()", true);
-    testParse("()())", true);
-    testParse("(a b", true);
-    testParse("a b", true);
-    testParse("a b)", true);
-
-    for (var k in coreTypes) 
-        testParse(coreTypes[k])
-}
 
 function testComposition(a:string, b:string, fail:boolean = false)
 {
@@ -262,16 +235,11 @@ function regressionTestComposition() {
     }
 }
 
-//runParseTests()
 //runCloneTests();
 //printCoreTypes();
 //testComposingCoreOps();
 //outputCompositions();
 regressionTestComposition();
-
-// The troublesome type.
-//testComposition(coreTypes['quote'], coreTypes['dup']);
-//testComposition(coreTypes['quote'], coreTypes['apply']);
 
 declare var process : any;
 process.exit();
