@@ -2,13 +2,17 @@
 
 This is a practical implementation in TypeScript of a type inference algorithm that can infer non-recursive rank-n polymorphic types without user supplied type annotations. This is more powerful than type reconstruction for the  Hindley-Milner type system (aka Hindley Milner Damas Type inference or Algorithm W) which only allows universal quantifiers to occur at the top level. 
 
+# Source Code and Dependencies 
+
+All of the source code is constained in a single TypeScript file [type_inference.ts](https://github.com/cdiggins/type-inference/blob/master/type_inference.ts). The tests are contained in the file [test.ts](https://github.com/cdiggins/type-inference/blob/master/test.ts). The tests have a dependency on the [Myna parser](https://github.com/cdiggins/myna-parser).
+
 # Motivation 
 
 Most programming languages with support for parametric (aka generic) types don't allow programmers to use generic types as type parameters. Instead generic types have to be converted to non-polymorphic types by supplying non-polymorphic types for each type parameter before they can be used. Described another way these languages only support rank-1 polymorphism, also called prenex polymorphism.
 
 Strongly typed languages with type inference usually can only infer types for certain expressions making them hard to learn for new users because they quickly find themselves in situiations where they have to understand the intricacies and limitations of the type system, and how to write complex types in situations that would be easy to express in a dynamic language (e.g. Python and JavaScript).
 
-I conjecture that full type inference in a programming language with higher rank type polymorphism can give programmers the convenience and smooth learning curve of a dynamic programming language with the safety, security, and efficiency of a strongly typed programming language. 
+I believe that full type inference in a programming language with higher rank type polymorphism can give programmers the convenience and smooth learning curve of a dynamic programming language with the safety, security, and efficiency of a strongly typed programming language. 
 
 ## Limitations 
 
