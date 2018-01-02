@@ -706,3 +706,65 @@ type equivalency constraints. Every time a new constraint is introduced a type i
 
 A constraint expresses an equivalency between two types. Two type arra
 
+//==
+
+Furthermore any type where a type variable occurs only on the right-side of a function, or that contains an illegal type, should be considered an illegal type. 
+
+* http://people.cs.uchicago.edu/~odonnell/Teacher/Lectures/Formal_Organization_of_Knowledge/Examples/combinator_calculus/
+//==
+
+# Usage with Concatenative Languages
+
+The type inference algorithm was developed initially for use with the [Cat programming language](http://www.cat-language.com) which is a strongly typed functional stack-based language (aka a concatenative language) based on [Joy](https://en.wikipedia.org/wiki/Joy_(programming_language).
+
+//==
+
+TODO:  I need to explain row polymorphism, but not tonight. 
+# Encoding Row Polymorphism 
+
+Row polymorphism enables a type to 
+
+For example say I have a programming language with a function: 
+
+partial_apply<T, U>
+
+# Inferring Row Polymorphism
+
+When unifying two type lists with different lengths but the shorter has a type variable in the last position, the unification algorithm will "just work" treating the final type variable as a row variable. Encoding all function arguments and function results as type lists with type variables in the final position automatically enables row polymorphism to work. 
+
+
+//
+
+
+## Typed Concatenative Languages
+
+The following are types for common primitive terms in concatenative languages: 
+
+```
+    apply   : "!t1.(!t0.((t0 -> t1) t0) -> t1)",
+    compose : "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) t3))",
+    quote   : "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) t1))",
+    dup     : "!t0!t1.((t0 t1) -> (t0 (t0 t1)))",
+    swap    : "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (t0 t2)))",
+    pop     : "!t1.(!t0.(t0 t1) -> t1)",
+```
+
+Some types that are inferred by the system by composing functions 
+
+```
+    dup dup : "!t0!t1.((t0 t1) -> (t0 (t0 t1)))",
+```
+
+
+## Example of Usage in a Concatenative Language 
+
+The following are formal types of functions commonly used in concatenative languages:
+
+```
+    apply   : "((('a -> 'b) 'a) -> 'b)",
+    compose : "((('b -> 'c) (('a -> 'b) 'd)) -> (('a -> 'c) 'd))",
+    quote   : "(('a 'b) -> (('c -> ('a 'c)) 'b))",
+    dup     : "(('a 'b) -> ('a ('a 'b)))",
+    swap    : "(('a ('b 'c)) -> ('b ('a 'c)))",
+    pop     : "(('a 'b) -> 'b)",
+```
