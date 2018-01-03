@@ -98,6 +98,14 @@ An array type (not to be confused with an array of types) can be encoded as a ty
 
 For example: `!T.((T []) -> Num)` encodes the type of a function that accepts convert 
 
+# Top-Level Type Operators
+
+There are three top-level type operators provided:
+
+1. Application  - Given a function type, and the type of the arguments, returns the output type.
+2. Composition  - Given two functions types (f and g) returns a new type representing the composition of the two functions. 
+3. Quotation    - Given a type x generates a row-polymorphic function that will take any type (a) and return the pair a and x.
+
 # Row Polymorphism
 
 Two sequences of types of different lengths can be unified if they are encoded as type lists with a type variable in the tail position.
@@ -184,14 +192,6 @@ Prelude> f = apply . quotedup
     * Relevant bindings include
         f :: (a, b) -> (a, t1) (bound at <interactive>:11:1)
 ```
-
-# Top-Level Type Operators
-
-There are three top-level type operators provided:
-
-1. Application - Given a function type, and the type of the arguments, returns the output type.
-2. Composition - Given two functions types (f and g) returns a new type representing the composition of the two functions. 
-3. Quotation - Given a type x generates a row-polymorphic function that will take any type (a) and return the pair a and x.
 
 # Appendix: An Alternate Syntax of Type Signatures
 
