@@ -105,9 +105,84 @@ Two sequences of types of different lengths can be unified if they are encoded a
 This is useful to express concepts like a function that accept all tuples that have at least one or two items, such as a `dup`, `pop`, or `swap` operation that works on stacks. The type then would be written as:
 
 ```
-pop  : !a!s.((a s) -> s)))
-dup  : !a!s.((a s) -> (a (a s)))
-swap : !a!b!s.(a (b s) -> (b (a s)))
+pop  : !a!S.((a S) -> S)))
+dup  : !a!S.((a S) -> (a (a S)))
+swap : !a!b!S.(a (b S) -> (b (a S)))
+```
+
+Note that lower case and upper case variables do not have different syntactic, if a variable is in a tail position it is implicitly row polymorphic because of the nature of unification of lists encoded as nested pairs.
+
+# How the Algorithm differs from Hindley Milner 
+
+In Hindley Milner type inference all forall quantifiers are lifted to the top of a function. This is not immediately obvious when looking at common terms in the Lambda Calculus, but it becomes more obvious when we start looking at concatenative languages, i.e. stack based language with higher order functions, and consider the type of the term `quote dup`, or any term that makes a copy of a polymorphic function argument. 
+
+Consider the following operators which are common in concatenative (i.e. functional stack based) languages:
+
+```
+apply   : !R.(!S.((S -> R) S) -> R)
+quote   : !S!a.((a S) -> (!R.(R -> (a R)) S))
+compose : !A!C!S.(!B.((B -> C) ((A -> B) S)) -> ((A -> C) S))
+```
+
+The `apply` function applies the function on the top of the stack to the rest of the stack. The `quote` function remove a value from the top of the top of the stack, and pushes a function on to the stack that will take any stack and push that value back onto the stack, and the compose function will take two functions off of the stack (say `f` on top followed by `g` underneath) and then push the composition of g with f (`g.f`) back onto the stack. 
+
+Now consider the type inferred by the algorithm for the term `quote dup`. Notice that there are two independent forall quantifiers in the generated function. This is not possible for HM type inference.
+
+```
+quote dup : !t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) (!t3.(t3 -> (t0 t3)) t1)))
+```
+
+When we infer the type for the term `quote dup apply` we get the following: 
+
+```
+quote dup apply : !t0!t1.((t0 t1) -> (t0 (t0 (t1)))
+```
+
+Notice this is exactly the same type as for `dup` which is what we expect intuitively.  
+
+## Compared to Haskell 
+
+The core stack terms can all be described easily in standard Haskell and with the type inferred, but the forall quantifiers are all implicitly lifted to the top level. Here is an example of an interactive session with Haskell 
+
+```
+GHCi, version 8.2.1: http://www.haskell.org/ghc/  :? for help
+Prelude> :set +t
+Prelude> dup (a, s) = (a, (a, s))
+dup :: (a, b) -> (a, (a, b))
+Prelude> pop (a, s) = s
+pop :: (a, b) -> b
+Prelude> swap (a, (b, s)) = (b, (a, s))
+swap :: (a1, (a2, b)) -> (a2, (a1, b))
+Prelude> quote (a, s) = (\r -> (a, r), s)
+quote :: (a, b1) -> (b2 -> (a, b2), b1)
+Prelude> apply (f, s) = f s
+apply :: (t1 -> t2, t1) -> t2
+Prelude> compose (f, (g, s)) = (g . f, s)
+compose :: (a -> b1, (b1 -> c, b2)) -> (a -> c, b2)
+```
+
+So far everything looks the same as before, however the type of the expression `dup quote` in a concatenative language (`quote . dup` when expressed in a prefix applicative function language) the type inferred by Haskell is as follows: 
+
+```
+Prelude> quotedup = dup . quote
+quotedup :: (a, b) -> (b2 -> (a, b2), (b2 -> (a, b2), b))
+```
+
+This type represents the two `quote` functions on the stack as being linked, they both require the same stack configuration `b2`. So when we are to try and compose this with apply, the type inference algorithm fails apart as expected with prenex polymorphism.
+
+```
+Prelude> f = apply . quotedup
+
+<interactive>:11:13: error:
+    * Occurs check: cannot construct the infinite type:
+        t1 ~ (t1 -> (a, t1), b)
+      Expected type: (a, b) -> (t1 -> (a, t1), t1)
+        Actual type: (a, b) -> (t1 -> (a, t1), (t1 -> (a, t1), b))
+    * In the second argument of `(.)', namely `quotedup'
+      In the expression: apply . quotedup
+      In an equation for `f': f = apply . quotedup
+    * Relevant bindings include
+        f :: (a, b) -> (a, t1) (bound at <interactive>:11:1)
 ```
 
 # Top-Level Type Operators
@@ -137,3 +212,4 @@ Given a type array containing type variables assumed to be uniqely named in pote
 * https://en.wikipedia.org/wiki/Unification_(computer_science) 
 * https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 * http://www.angelfire.com/tx4/cus/combinator/birds.html
+* https://github.com/leonidas/codeblog/blob/master/2012/2012-02-17-concatenative-haskell.md
