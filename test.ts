@@ -24,9 +24,10 @@ function registerGrammars()
         var _this = this;
         this.recExpr        = m.delay(() => _this.expr);
         this.var            = m.identifier.ast;
+        this.number         = m.digits.ast;
         this.abstraction    = m.guardedSeq("\\", this.var, ".").then(this.recExpr).ast;
         this.parenExpr      = m.guardedSeq("(", this.recExpr, ")").ast;
-        this.expr           = m.choice(this.parenExpr, this.abstraction, this.var).then(m.ws).oneOrMore.ast;
+        this.expr           = m.choice(this.parenExpr, this.abstraction, this.var, this.number).then(m.ws).oneOrMore.ast;
     }
     m.registerGrammar('lambda', lambdaGrammar, lambdaGrammar.expr);    
 }
@@ -130,6 +131,9 @@ var combinators = {
     second  : "\\p.p \\x.\\y.y",
     nil     : "\\a.\\x.\\y.x",
     null    : "\\p.p (\\a.\\b.\\x.\\y.y)",
+
+    // This fails:
+    test    : "(\\i.(i \\x.x) (i 0)) \\y.y"
 };
 
 function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : ti.Type {
@@ -147,6 +151,8 @@ function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : t
             return lambdaAstToType(ast.children[0], engine);
         case "var":
             return engine.lookupVariable(ast.allText);
+        case "number":
+            return ti.typeConstant('Num');
         case "expr":
             {                
                 var r : ti.Type = lambdaAstToType(ast.children[0], engine);

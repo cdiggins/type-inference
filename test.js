@@ -20,9 +20,10 @@ function registerGrammars() {
         var _this = this;
         this.recExpr = myna_1.Myna.delay(function () { return _this.expr; });
         this.var = myna_1.Myna.identifier.ast;
+        this.number = myna_1.Myna.digits.ast;
         this.abstraction = myna_1.Myna.guardedSeq("\\", this.var, ".").then(this.recExpr).ast;
         this.parenExpr = myna_1.Myna.guardedSeq("(", this.recExpr, ")").ast;
-        this.expr = myna_1.Myna.choice(this.parenExpr, this.abstraction, this.var).then(myna_1.Myna.ws).oneOrMore.ast;
+        this.expr = myna_1.Myna.choice(this.parenExpr, this.abstraction, this.var, this.number).then(myna_1.Myna.ws).oneOrMore.ast;
     };
     myna_1.Myna.registerGrammar('lambda', lambdaGrammar, lambdaGrammar.expr);
 }
@@ -118,6 +119,8 @@ var combinators = {
     second: "\\p.p \\x.\\y.y",
     nil: "\\a.\\x.\\y.x",
     null: "\\p.p (\\a.\\b.\\x.\\y.y)",
+    // This should fail.
+    test: "(\\i.(i \\x.x) (i 0)) \\y.y"
 };
 function lambdaAstToType(ast, engine) {
     switch (ast.rule.name) {
@@ -133,6 +136,8 @@ function lambdaAstToType(ast, engine) {
             return lambdaAstToType(ast.children[0], engine);
         case "var":
             return engine.lookupVariable(ast.allText);
+        case "number":
+            return type_inference_1.TypeInference.typeConstant('Num');
         case "expr":
             {
                 var r = lambdaAstToType(ast.children[0], engine);
