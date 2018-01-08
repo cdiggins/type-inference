@@ -69,7 +69,7 @@ export module TypeInference
         }
             
         // Returns a copy of the type array creating new parameter names. 
-        freshParamNames(id:number) : TypeArray {
+        freshParameterNames(id:number) : TypeArray {
             // Create a lookup table for the type parameters with new names 
             var newTypes:ITypeLookup = {};
             for (var tp of this.typeParameterNames)
@@ -79,7 +79,7 @@ export module TypeInference
             var types = this.types.map(t => t.clone(newTypes));
 
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(t => t instanceof TypeArray ? t.freshParamNames(id) : t);
+            types = types.map(t => t instanceof TypeArray ? t.freshParameterNames(id) : t);
             var r = new TypeArray(types, false);
 
             // Now recreate the type parameter list
@@ -94,8 +94,8 @@ export module TypeInference
         }
          
         // Infer which type variables are actually type parameters (universally quantified) 
-        // based on their position.
-        computeParameters() {
+        // based on their position. Mutates in place.
+        computeParameters() : TypeArray {
             this.typeParameterVars = [];
 
             // Recursively compute the parameters for base types
@@ -125,6 +125,8 @@ export module TypeInference
                 if (i < 0) 
                     throw new Error("Internal error: type scheme references a variable that is not marked as referenced by the type variable")
             }
+
+            return this;
         }
 
         // The type variables that are bound to this TypeArray. 
@@ -314,7 +316,7 @@ export module TypeInference
                 else if (u.unifier instanceof TypeArray) {
                     if (u.name in unifiedVars) {
                         // We have already seen this unified var before
-                        var u2 = u.unifier.freshParamNames(unifiedVars[u.name] += 1);
+                        var u2 = u.unifier.freshParameterNames(unifiedVars[u.name] += 1);
                         return this.getUnifiedType(u2, [expr.name].concat(previousVars), unifiedVars);
                     }
                     else {
@@ -515,12 +517,20 @@ export module TypeInference
         return descendantTypes(functionOutput(t)).some(isPolyType);
     }
 
-    // Returns the type of the id function 
-    export function idFunction() : TypeArray {
-        var s = typeVariable('_');
-        return functionType(s, s);
+    // Global function for fresh variable names
+    export function freshVariableNames(t:Type, id:number) : Type {
+        return (t instanceof TypeArray) ? t.freshVariableNames(id) : t;
+    }
+        
+    // Global function for fresh parameter names
+    export function freshParameterNames(t:Type, id:number) : Type {
+        return (t instanceof TypeArray) ? t.freshParameterNames(id) : t;
     }
 
+    export function computeParameters(t:Type) : Type {
+        return (t instanceof TypeArray) ? t.computeParameters() : t;
+    }
+        
     //========================================================
     // Variable name functions
 
@@ -704,7 +714,7 @@ export module TypeInference
             console.log(e.state());
             console.log("Intermediate result: " + r)
         }
-        //r = r.freshParameterNames(0);
+
         // Recompute parameters.
         r.computeParameters();
         if (trace) {
@@ -725,19 +735,49 @@ export module TypeInference
 
     // Applies a function to input arguments and returns the result 
     export function applyFunction(fxn:TypeArray, args:Type) : Type {
+        if (trace) {
+            console.log("Applying function: " + fxn + ", arguments: " + args);
+        }
+
         var u = new Unifier();
+        /*
         fxn = fxn.clone({});
         args = args.clone({});
+        */
+        
+        // FreshParameterNames or FreshVariableNames??
+        fxn = freshParameterNames(fxn, 0) as TypeArray;
+        args = freshParameterNames(args, 1);
+        //fxn = freshVariableNames(fxn, 0) as TypeArray;
+        //args = freshVariableNames(args, 1);
+
+        if (trace) {
+            console.log("After renaming, function: " + fxn + ", arguments: " + args);
+        }
+
         var input = functionInput(fxn);
         var output = functionOutput(fxn);    
         u.unifyTypes(input, args);
-        return u.getUnifiedType(output, [], {});
+        var r = u.getUnifiedType(output, [], {});
+        r = computeParameters(r);
+
+        if (trace) {
+            console.log("Output type: " + r);
+        }
+        return r;
     }
 
-    // Creates a function type that generates the given type 
+    // Creates a function type that generates the given type.
+    // If given no type returns the empty quotation.
     export function quotation(x:Type) : TypeArray {
-        var row = typeVariable('_');
-        return functionType(row, typeArray([x, row]));
+        var row = typeVariable('_');        
+        x = freshParameterNames(x, 0);
+        return functionType(row, x ? typeArray([x, row]) : row);
+    }
+
+    // Returns the type of the id function 
+    export function idFunction() : TypeArray {
+        return quotation(null);
     }
 
     //=========================================================
@@ -751,7 +791,8 @@ export module TypeInference
         types : Type[] = [];
         unifier : Unifier = new Unifier();
     
-        applyFunction(t:Type, args:Type) : Type {
+        applyFunction(t:Type, args:Type) : Type 
+        {
             if (!isFunctionType(t)) 
             {
                 // Only variables and functions can be applied 
@@ -759,17 +800,19 @@ export module TypeInference
                     throw new Error("Type associated with " + name + " is neither a function type or a type variable: " + t);
     
                 // Generate a new function type 
-                var newInputType = typeVariable(t.name + "_i");
-                var newOutputType = typeVariable(t.name + "_o");
+                var newInputType = this.introduceVariable(t.name + "_i");
+                var newOutputType = this.introduceVariable(t.name + "_o");
                 var fxnType = functionType(newInputType, newOutputType);
                 
                 // Unify the new function type with the old variable 
                 this.unifier.unifyTypes(t, fxnType);
                 t = fxnType;
             }
-    
-            this.unifier.unifyTypes(functionInput(t), args);
-            var r = functionOutput(t);
+
+            // Call the global apply function.
+            var r = applyFunction(t as TypeArray, args);
+            
+            // TODO: this might not be correct, validate.
             return this.unifier.getUnifiedType(r, [], {});
         }
     

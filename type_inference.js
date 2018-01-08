@@ -83,7 +83,7 @@ var TypeInference;
             return this.clone(newTypes);
         };
         // Returns a copy of the type array creating new parameter names. 
-        TypeArray.prototype.freshParamNames = function (id) {
+        TypeArray.prototype.freshParameterNames = function (id) {
             // Create a lookup table for the type parameters with new names 
             var newTypes = {};
             for (var _i = 0, _a = this.typeParameterNames; _i < _a.length; _i++) {
@@ -93,7 +93,7 @@ var TypeInference;
             // Clone all of the types.             
             var types = this.types.map(function (t) { return t.clone(newTypes); });
             // Recursively call "freshParameterNames" on child type arrays as needed. 
-            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParamNames(id) : t; });
+            types = types.map(function (t) { return t instanceof TypeArray ? t.freshParameterNames(id) : t; });
             var r = new TypeArray(types, false);
             // Now recreate the type parameter list
             this.cloneParameters(r, this.typeParameterVars, newTypes);
@@ -108,7 +108,7 @@ var TypeInference;
             configurable: true
         });
         // Infer which type variables are actually type parameters (universally quantified) 
-        // based on their position.
+        // based on their position. Mutates in place.
         TypeArray.prototype.computeParameters = function () {
             this.typeParameterVars = [];
             // Recursively compute the parameters for base types
@@ -138,6 +138,7 @@ var TypeInference;
                 if (i < 0)
                     throw new Error("Internal error: type scheme references a variable that is not marked as referenced by the type variable");
             }
+            return this;
         };
         Object.defineProperty(TypeArray.prototype, "typeParametersToString", {
             // Provides a user friendly representation of the type scheme (list of type parameters)
@@ -310,7 +311,7 @@ var TypeInference;
                 else if (u.unifier instanceof TypeArray) {
                     if (u.name in unifiedVars) {
                         // We have already seen this unified var before
-                        var u2 = u.unifier.freshParamNames(unifiedVars[u.name] += 1);
+                        var u2 = u.unifier.freshParameterNames(unifiedVars[u.name] += 1);
                         return this.getUnifiedType(u2, [expr.name].concat(previousVars), unifiedVars);
                     }
                     else {
@@ -507,12 +508,20 @@ var TypeInference;
         return descendantTypes(functionOutput(t)).some(isPolyType);
     }
     TypeInference.generatesPolytypes = generatesPolytypes;
-    // Returns the type of the id function 
-    function idFunction() {
-        var s = typeVariable('_');
-        return functionType(s, s);
+    // Global function for fresh variable names
+    function freshVariableNames(t, id) {
+        return (t instanceof TypeArray) ? t.freshVariableNames(id) : t;
     }
-    TypeInference.idFunction = idFunction;
+    TypeInference.freshVariableNames = freshVariableNames;
+    // Global function for fresh parameter names
+    function freshParameterNames(t, id) {
+        return (t instanceof TypeArray) ? t.freshParameterNames(id) : t;
+    }
+    TypeInference.freshParameterNames = freshParameterNames;
+    function computeParameters(t) {
+        return (t instanceof TypeArray) ? t.computeParameters() : t;
+    }
+    TypeInference.computeParameters = computeParameters;
     //========================================================
     // Variable name functions
     // Rename all type variables os that they follow T0..TN according to the order the show in the tree. 
@@ -694,7 +703,6 @@ var TypeInference;
             console.log(e.state());
             console.log("Intermediate result: " + r);
         }
-        //r = r.freshParameterNames(0);
         // Recompute parameters.
         r.computeParameters();
         if (TypeInference.trace) {
@@ -715,21 +723,46 @@ var TypeInference;
     TypeInference.composeFunctionChain = composeFunctionChain;
     // Applies a function to input arguments and returns the result 
     function applyFunction(fxn, args) {
+        if (TypeInference.trace) {
+            console.log("Applying function: " + fxn + ", arguments: " + args);
+        }
         var u = new Unifier();
+        /*
         fxn = fxn.clone({});
         args = args.clone({});
+        */
+        // FreshParameterNames or FreshVariableNames??
+        fxn = freshParameterNames(fxn, 0);
+        args = freshParameterNames(args, 1);
+        //fxn = freshVariableNames(fxn, 0) as TypeArray;
+        //args = freshVariableNames(args, 1);
+        if (TypeInference.trace) {
+            console.log("After renaming, function: " + fxn + ", arguments: " + args);
+        }
         var input = functionInput(fxn);
         var output = functionOutput(fxn);
         u.unifyTypes(input, args);
-        return u.getUnifiedType(output, [], {});
+        var r = u.getUnifiedType(output, [], {});
+        r = computeParameters(r);
+        if (TypeInference.trace) {
+            console.log("Output type: " + r);
+        }
+        return r;
     }
     TypeInference.applyFunction = applyFunction;
-    // Creates a function type that generates the given type 
+    // Creates a function type that generates the given type.
+    // If given no type returns the empty quotation.
     function quotation(x) {
         var row = typeVariable('_');
-        return functionType(row, typeArray([x, row]));
+        x = freshParameterNames(x, 0);
+        return functionType(row, x ? typeArray([x, row]) : row);
     }
     TypeInference.quotation = quotation;
+    // Returns the type of the id function 
+    function idFunction() {
+        return quotation(null);
+    }
+    TypeInference.idFunction = idFunction;
     //=========================================================
     // A simple helper class for implementing scoped programming languages with names like the lambda calculus.
     // This class is more intended as an example of usage of the algorithm than for use in production code    
@@ -746,15 +779,16 @@ var TypeInference;
                 if (!(t instanceof TypeVariable))
                     throw new Error("Type associated with " + name + " is neither a function type or a type variable: " + t);
                 // Generate a new function type 
-                var newInputType = typeVariable(t.name + "_i");
-                var newOutputType = typeVariable(t.name + "_o");
+                var newInputType = this.introduceVariable(t.name + "_i");
+                var newOutputType = this.introduceVariable(t.name + "_o");
                 var fxnType = functionType(newInputType, newOutputType);
                 // Unify the new function type with the old variable 
                 this.unifier.unifyTypes(t, fxnType);
                 t = fxnType;
             }
-            this.unifier.unifyTypes(functionInput(t), args);
-            var r = functionOutput(t);
+            // Call the global apply function.
+            var r = applyFunction(t, args);
+            // TODO: this might not be correct, validate.
             return this.unifier.getUnifiedType(r, [], {});
         };
         ScopedTypeInferenceEngine.prototype.introduceVariable = function (name) {

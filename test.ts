@@ -1,9 +1,16 @@
+// This is a set of tests for the type-inference algorithm applied to lambda Calculus and the Concatenative calculus.
+// Running these tests require installation of the Myna parsing module. 
+
+// \f.f(f)
+// \x.\f.(f(f))x
+// apply, abstract, variable 
+
+
+
 import { TypeInference as ti } from "./type_inference";
 import { Myna as m } from "./node_modules/myna-parser/myna";
 
-var verbose = false;
-
-// Defines syntax parsers for type expressions and a simple lambda calculus
+// Defines syntax parsers for type expression, the lambda calculus, and Cat 
 function registerGrammars() 
 {
     // A simple grammar for parsing type expressions
@@ -18,7 +25,7 @@ function registerGrammars()
     }      
     m.registerGrammar('type', typeGrammar, typeGrammar.typeExpr);    
     
-    // A simple grammar for parsing the lambda calculus 
+    // A Myna grammar for parsing the lambda calculus with integers 
     var lambdaGrammar = new function() 
     {
         var _this = this;
@@ -30,82 +37,39 @@ function registerGrammars()
         this.expr           = m.choice(this.parenExpr, this.abstraction, this.var, this.number).then(m.ws).oneOrMore.ast;
     }
     m.registerGrammar('lambda', lambdaGrammar, lambdaGrammar.expr);    
+
+    // Defines a Myna grammar for parsing simple Cat expressions
+    var catGrammar = new function() 
+    {
+        var _this = this;
+        this.identifier     = m.identifier.ast;
+        this.integer        = m.integer.ast;
+        this.true           = m.keyword("true").ast;
+        this.false          = m.keyword("false").ast;
+        this.recTerm        = m.delay(() => { return _this.term; });
+        this.quotation      = m.guardedSeq('[', m.ws, this.recTerm.ws.zeroOrMore, ']').ast;
+        this.term           = m.choice(this.quotation, this.integer, this.true, this.false, this.identifier); 
+        this.terms          = m.ws.then(this.term.ws.zeroOrMore);
+    }    
+    m.registerGrammar('cat', catGrammar, catGrammar.terms);    
 }
 
 registerGrammars();
 
-var typeParser = m.parsers['type'];
-var lcParser = m.parsers['lambda'];
+var typeParser  = m.parsers['type'];
+var lcParser    = m.parsers['lambda'];
+var catParser   = m.parsers['cat'];
 
-function runTest(f:() => any, testName:string, expectFail:boolean = false) {
-    try {
-        console.log("Running test: " + testName);
-        var result = f();
-        console.log("Result = " + result);
-        if (result && !expectFail || !result && expectFail) {
-            console.log("PASSED");
-        }
-        else {
-            console.log("FAILED");
-        }
-    }   
-    catch (e) {
-        if (expectFail) {
-            console.log("PASSED: expected fail, error caught: " + e.message);
-        }
-        else {
-            console.log("FAILED: error caught: " + e.message);
-        }
-    }
-}
+//================================================================
 
-function stringToType(input:string) : ti.Type {
-    var ast = typeParser(input);
-    if (ast.end != input.length) 
-        throw new Error("Only part of input was consumed");
-    return astToType(ast);
-}
-
-function typeToString(t:ti.Type) : string {
-    if (t instanceof ti.TypeVariable) 
-        return "'" + t.name;
-    else if (t instanceof ti.TypeArray) 
-        return "(" + t.types.map(typeToString).join(" ") + ")";
-    else 
-        return t.toString();
-}
-
-function astToType(ast) : ti.Type {
-    if (!ast)
-        return null;
-    switch (ast.name)
-    {
-        case "typeVar":
-            return ti.typeVariable(ast.allText.substr(1));
-        case "typeConstant":
-            return ti.typeConstant(ast.allText);
-        case "typeList":
-            return ti.typeArray(ast.children.map(astToType));
-        case "typeExpr":
-            if (ast.children.length != 1) 
-                throw new Error("Expected only one child of node, not " + ast.children.length);
-            return astToType(ast.children[0]);
-        default: 
-            throw new Error("Unrecognized type expression: " + ast.name);
-    }
-}  
-
-function testParse(input:string, fail:boolean=false) {
-    runTest(() => stringToType(input), input, fail);
-}
-
-var coreTypes = {
+var catTypes = {
     apply   : "((('a -> 'b) 'a) -> 'b)",
     compose : "((('b -> 'c) (('a -> 'b) 'd)) -> (('a -> 'c) 'd))",
     quote   : "(('a 'b) -> (('c -> ('a 'c)) 'b))",
     dup     : "(('a 'b) -> ('a ('a 'b)))",
     swap    : "(('a ('b 'c)) -> ('b ('a 'c)))",
     pop     : "(('a 'b) -> 'b)",
+    id      : "('a -> 'a)",
 };
 
 var combinators = {
@@ -132,9 +96,56 @@ var combinators = {
     nil     : "\\a.\\x.\\y.x",
     null    : "\\p.p (\\a.\\b.\\x.\\y.y)",
 
-    // This fails:
-    test    : "(\\i.(i \\x.x) (i 0)) \\y.y"
+    // This currently fails: just like it does with HM
+    test1    : "(\\i.(i \\x.x) (i 0)) \\y.y",
+
+    // More tests
+    test2    : "\\i.(i 0) \\y.y",
+    test3    : "\\i.(i i) \\y.y",
+    test4    : "\\i.(i \\x.x) \\y.y",
+    test5    : "\\i.(i (\\x.x 0)) \\y.y",
+    test6    : "0",
+    test7    : "\\i.0",
+    test8    : "\\i.i 0",
+    test9    : "\\i.0 \\y.y",
+    test10   : "(\\i.0)",
+    test11   : "(\\i.i 0)",
+    test12   : "\\i.i (0)",
+    test13   : "(\\i.0 \\y.y)",
+    test14   : "\\i.0 (\\y.y)",
+    test15   : "(\\i.0) (\\y.y)",
+    test16   : "(\\i.0) \\y.y",
 };
+
+//=================================================================
+// Parsing functions
+
+function stringToType(input:string) : ti.Type {
+    var ast = typeParser(input);
+    if (ast.end != input.length) 
+        throw new Error("Only part of input was consumed");
+    return astToType(ast);
+}
+
+function astToType(ast) : ti.Type {
+    if (!ast)
+        return null;
+    switch (ast.name)
+    {
+        case "typeVar":
+            return ti.typeVariable(ast.allText.substr(1));
+        case "typeConstant":
+            return ti.typeConstant(ast.allText);
+        case "typeList":
+            return ti.typeArray(ast.children.map(astToType));
+        case "typeExpr":
+            if (ast.children.length != 1) 
+                throw new Error("Expected only one child of node, not " + ast.children.length);
+            return astToType(ast.children[0]);
+        default: 
+            throw new Error("Unrecognized type expression: " + ast.name);
+    }
+}  
 
 function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : ti.Type {
     switch (ast.rule.name) 
@@ -179,6 +190,78 @@ function stringToLambdaExprType(s:string) : ti.Type {
 
     return t;
 }
+
+function catTypeFromAst(ast:m.AstNode) : ti.TypeArray {
+    switch (ast.name) {
+        case "integer": 
+            return ti.quotation(ti.typeConstant('Num'));
+        case "true": 
+        case "false": 
+            return ti.quotation(ti.typeConstant('Bool'));
+        case "identifier": {
+            var ts = catTypes[ast.allText];
+            if (!ts) throw new Error("Could not find type for term: " + ast.allText);
+            return stringToType(ts) as ti.TypeArray;
+        }
+        case "quotation": {
+            var innerType = ast.children.length > 0
+                ? catTypeFromAst(ast.children[0])
+                : ti.idFunction()
+            return ti.quotation(innerType);
+        }
+        case "terms": {
+            var types = ast.children.map(catTypeFromAst);
+            return ti.composeFunctionChain(types);
+        }
+        default:
+            throw new Error("Could not figure out function type");
+    }
+}
+
+function catType(s:string) : ti.TypeArray {
+    var ast = catParser(s);
+    if (ast.allText.length != s.length)
+        throw new Error("Could not parse the entire term: " + s);
+    return catTypeFromAst(ast);
+}
+
+//==========================================================================================
+// Testing helper functions 
+
+function testParse(input:string, fail:boolean=false) {
+    runTest(() => stringToType(input), input, fail);
+}
+
+function runTest(f:() => any, testName:string, expectFail:boolean = false) {
+    try {
+        console.log("Running test: " + testName);
+        var result = f();
+        console.log("Result = " + result);
+        if (result && !expectFail || !result && expectFail) {
+            console.log("PASSED");
+        }
+        else {
+            console.log("FAILED");
+        }
+    }   
+    catch (e) {
+        if (expectFail) {
+            console.log("PASSED: expected fail, error caught: " + e.message);
+        }
+        else {
+            console.log("FAILED: error caught: " + e.message);
+        }
+    }
+}
+
+function typeToString(t:ti.Type) : string {
+    if (t instanceof ti.TypeVariable) 
+        return "'" + t.name;
+    else if (t instanceof ti.TypeArray) 
+        return "(" + t.types.map(typeToString).join(" ") + ")";
+    else 
+        return t.toString();
+}
     
 function testLambdaCalculus() {
     for (var k in combinators) {
@@ -193,9 +276,9 @@ function testLambdaCalculus() {
     }
 }
 
-function printCoreTypes() {
-    for (var k in coreTypes) {
-        var ts = coreTypes[k];
+function printCatTypes() {
+    for (var k in catTypes) {
+        var ts = catTypes[k];
         var t = stringToType(ts);
         console.log(k);
         console.log(ts);
@@ -203,28 +286,42 @@ function printCoreTypes() {
     }
 }
 
-function testForallInference() {
-    var data = {
-        apply   : "!t1.(!t0.((t0 -> t1) t0) -> t1)",
-        compose : "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) t3))",
-        quote   : "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) t1))",
-        dup     : "!t0!t1.((t0 t1) -> (t0 (t0 t1)))",
-        swap    : "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (t0 t2)))",
-        pop     : "!t1.(!t0.(t0 t1) -> t1)",
-    };
-
-    for (var k in data) {
-        var expType = data[k];
-        var infType = ti.normalizeVarNames(stringToType(coreTypes[k]));
-        if (infType != expType)
-            console.log("FAILED: " + k + " + expected " + expType + " got " + infType);        
-        else 
-            console.log("PASSED: " + k);
+function testCatType(term:string, type:string) {
+    var exp = type;
+    var inf = catType(term);
+    var r = ti.normalizeVarNames(inf) as ti.TypeArray;
+    if (r.toString() != exp) {
+        console.log("FAILED: " + term + " + expected " + exp + " got " + r);
+    }
+    else {
+        console.log("PASSED: " + term + " : " + exp);
     }
 }
 
-function regressionTestComposition() {
+function testCatTypes() 
+{
     var data = [
+        // Primitive forms 
+        ["", "!t0.(t0 -> t0)"],
+        ["id", "!t0.(t0 -> t0)"],
+        ["apply", "!t1.(!t0.((t0 -> t1) t0) -> t1)"],
+        ["compose", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) t3))"],
+        ["quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) t1))"],
+        ["dup", "!t0!t1.((t0 t1) -> (t0 (t0 t1)))"],
+        ["swap", "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (t0 t2)))"],
+        ["pop", "!t1.(!t0.(t0 t1) -> t1)"],
+
+        // Quotations of Primitives 
+        ["[]", "!t0.(t0 -> (!t1.(t1 -> t1) t0))"],
+        ["[id]", "!t0.(t0 -> (!t1.(t1 -> t1) t0))"],
+        ["[apply]", "!t0.(t0 -> (!t2.(!t1.((t1 -> t2) t1) -> t2) t0))"],
+        ["[pop]", "!t0.(t0 -> (!t2.(!t1.(t1 t2) -> t2) t0))"],
+        ["[dup]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 (t1 t2)) t0))"],
+        ["[compose]", "!t0.(t0 -> (!t2!t3!t4.(!t1.((t1 -> t2) ((t3 -> t1) t4)) -> ((t3 -> t2) t4)) t0))"],
+        ["[quote]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (!t3.(t3 -> (t1 t3)) t2)) t0))"],
+        ["[swap]", "!t0!.(t0 -> t1!t2!t3.((t1 (t2 t3)) -> `(t2 (t1 t3))) t0))"],
+
+        // Compositions of Primitives 
         ["apply apply", "!t2.(!t0.((t0 -> !t1.((t1 -> t2) t1)) t0) -> t2)"],
         ["apply compose", "!t2!t3!t4.(!t0.((t0 -> !t1.((t1 -> t2) ((t3 -> t1) t4))) t0) -> ((t3 -> t2) t4))"],
         ["apply quote", "!t1!t2.(!t0.((t0 -> (t1 t2)) t0) -> (!t3.(t3 -> (t1 t3)) t2))"],
@@ -261,28 +358,65 @@ function regressionTestComposition() {
         ["pop dup", "!t1!t2.(!t0.(t0 (t1 t2)) -> (t1 (t1 t2)))"],
         ["pop swap", "!t1!t2!t3.(!t0.(t0 (t1 (t2 t3))) -> (t2 (t1 t3)))"],
         ["pop pop", "!t2.(!t0.(t0 !t1.(t1 t2)) -> t2)"],
+
+        // Some standard library operators         
+        ["swap quote compose apply", "!t1!t2.(!t0.((t0 -> t1) (t2 t0)) -> (t2 t1))"], // Dip
+
+        // Various tests
+        ["swap quote compose apply pop", "!t1.(!t0.((t0 -> t1) !t2.(t2 t0)) -> t1)"], // Dip pop == pop apply 
+        ["[id] dup 0 swap apply swap [id] swap apply apply", "!t0.(t0 -> (Num t0))"], // Issue reported by StoryYeller
     ];
 
-    for (var xs of data) {
-        var ops = xs[0].split(" ");
-        var exp = xs[1];
-        var expr1 = stringToType(coreTypes[ops[0]]);
-        var expr2 = stringToType(coreTypes[ops[1]]);
-        var r = ti.composeFunctions(expr1 as ti.TypeArray, expr2 as ti.TypeArray);
-        r = ti.normalizeVarNames(r) as ti.TypeArray;
-        if (r.toString() != exp) {
-            console.log("FAILED: " + xs[0] + " + expected " + exp + " got " + r);
-        }
-        else {
-            console.log("PASSED: " + xs[0]);
-        }
-    }
+    console.log("Testing Cat expression inference")
+    for (var xs of data) 
+        testCatType(xs[0], xs[1]);
 }
 
-printCoreTypes();
+// TODO: 
+// Test these equalities: 
+// [t] apply = t
+// [t] pop = id
+// t id = t
+// id t = t
+// [t] quote apply = [t]
+// [t] dup popd apply = t
+// [t] dup pop apply = t
+// dip pop = pop apply
+// [t] [u] compose = [t u]
+// [t] apply [u] apply = t u
+// [t] [u] compose apply = t u
+// t u v = [t] [u] compose [v] compose apply = [u] [v] compose [t] swap compose apply 
+ 
+function issue1()
+{
+    // Working on issue #1 reported by @storyyeller
+    ti.trace = true;
+    var e = new ti.ScopedTypeInferenceEngine();
+    var s = combinators.test1;
+    var ast = lcParser(s);
+    if (ast.end != s.length) 
+        throw new Error("Only part of input was consumed");
+        
+    var t = lambdaAstToType(ast, e);    
+    t = e.getUnifiedType(t);
+    console.log(e.unifier.state());
+    console.log(t.toString());
+}
+
+function issue1InCat() {
+    var t = catType("");
+    t = ti.alphabetizeVarNames(t) as ti.TypeArray;
+    console.log(t.toString());
+
+    t = catType("[id] dup [0 swap apply] swap quote compose apply [id] swap apply apply swap apply")
+    t = ti.alphabetizeVarNames(t) as ti.TypeArray;
+    console.log(t.toString());
+}
+
+testCatTypes();
 testLambdaCalculus();
-testForallInference();
-regressionTestComposition();
+issue1();
+//issue1InCat();
 
 declare var process : any;
 process.exit();
