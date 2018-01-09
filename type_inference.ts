@@ -733,40 +733,6 @@ export module TypeInference
         return t;
     }
 
-    // Applies a function to input arguments and returns the result 
-    export function applyFunction(fxn:TypeArray, args:Type) : Type {
-        if (trace) {
-            console.log("Applying function: " + fxn + ", arguments: " + args);
-        }
-
-        var u = new Unifier();
-        /*
-        fxn = fxn.clone({});
-        args = args.clone({});
-        */
-        
-        // FreshParameterNames or FreshVariableNames??
-        fxn = freshParameterNames(fxn, 0) as TypeArray;
-        args = freshParameterNames(args, 1);
-        //fxn = freshVariableNames(fxn, 0) as TypeArray;
-        //args = freshVariableNames(args, 1);
-
-        if (trace) {
-            console.log("After renaming, function: " + fxn + ", arguments: " + args);
-        }
-
-        var input = functionInput(fxn);
-        var output = functionOutput(fxn);    
-        u.unifyTypes(input, args);
-        var r = u.getUnifiedType(output, [], {});
-        r = computeParameters(r);
-
-        if (trace) {
-            console.log("Output type: " + r);
-        }
-        return r;
-    }
-
     // Creates a function type that generates the given type.
     // If given no type returns the empty quotation.
     export function quotation(x:Type) : TypeArray {
@@ -783,7 +749,6 @@ export module TypeInference
     //=========================================================
     // A simple helper class for implementing scoped programming languages with names like the lambda calculus.
     // This class is more intended as an example of usage of the algorithm than for use in production code    
-
     export class ScopedTypeInferenceEngine 
     {
         id : number = 0;
@@ -797,26 +762,27 @@ export module TypeInference
             {
                 // Only variables and functions can be applied 
                 if (!(t instanceof TypeVariable))
-                    throw new Error("Type associated with " + name + " is neither a function type or a type variable: " + t);
+                    throw new Error("Type is neither a function type or a type variable: " + t);
     
                 // Generate a new function type 
                 var newInputType = this.introduceVariable(t.name + "_i");
                 var newOutputType = this.introduceVariable(t.name + "_o");
                 var fxnType = functionType(newInputType, newOutputType);
+                fxnType.computeParameters();
                 
                 // Unify the new function type with the old variable 
                 this.unifier.unifyTypes(t, fxnType);
                 t = fxnType;
             }
 
-            // Call the global apply function.
-            var r = applyFunction(t as TypeArray, args);
-            
-            // TODO: this might not be correct, validate.
-            return this.unifier.getUnifiedType(r, [], {});
+            // What is the input of the function: unify with the argument.
+            var input = functionInput(t);
+            var output = functionOutput(t);    
+            this.unifier.unifyTypes(input, args);    
+            return this.unifier.getUnifiedType(output, [], {});
         }
     
-        introduceVariable(name:string) : Type {
+        introduceVariable(name:string) : TypeVariable{
             var t = typeVariable(name + '$' + this.id++);
             this.names.push(name);
             this.types.push(t);
