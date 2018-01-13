@@ -245,6 +245,12 @@ var TypeInference;
             // Given a type variable name find the unifier. Multiple type variables will map to the same unifier 
             this.unifiers = {};
         }
+        // Returns a new type variable.
+        Unifier.prototype.newTypeVar = function () {
+            if (TypeInference.trace)
+                console.log("Unable to unify, creating new type variable.");
+            return typeVariable("x#" + this.id++);
+        };
         // Unify both types, returning the most specific type possible. 
         // When a type variable is unified with something the new unifier is stored. 
         // Note: TypeFunctions and TypePairs ar handled as TypeArrays
@@ -253,43 +259,54 @@ var TypeInference;
         // * Given two variables, the first one is chosen. 
         Unifier.prototype.unifyTypes = function (t1, t2, depth) {
             if (depth === void 0) { depth = 0; }
-            if (TypeInference.trace)
-                console.log("Unification depth " + depth + " of " + t1 + " and " + t2);
+            // if (trace) console.log(`Unification depth ${depth} of ${t1} and ${t2}`);
             if (!t1 || !t2)
                 throw new Error("Missing type expression");
             if (t1 == t2)
                 return t1;
             // Variables are least preferred.  
             if (t1 instanceof TypeVariable) {
-                return this._updateUnifier(t1, t2, depth);
+                var r = this._updateUnifier(t1, t2, depth);
+                this._updateAllUnifiers(t1.name, t2);
+                return r;
             }
             else if (t2 instanceof TypeVariable) {
-                return this._updateUnifier(t2, t1, depth);
+                var r = this._updateUnifier(t2, t1, depth);
+                this._updateAllUnifiers(t2.name, t1);
+                return r;
             }
             else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant) {
                 if (t1.name != t2.name)
-                    throw new Error("Can't unify: " + t1.name + " and " + t2.name);
+                    // TODO: temp
+                    return this.newTypeVar();
                 else
                     return t1;
             }
             else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant) {
-                throw new Error("Can't unify: " + t1 + " and " + t2);
+                // TODO: temp
+                return this.newTypeVar();
+                //throw new Error("Can't unify: " + t1 + " and " + t2);
             }
             else if (t1 instanceof TypeArray && t2 instanceof TypeArray) {
                 return this._unifyLists(t1, t2, depth + 1);
             }
             throw new Error("Internal error, unexpected code path: " + t1 + " and " + t2);
         };
-        // Debug function that dumps prints out a representation of the engine state. 
-        Unifier.prototype.state = function () {
-            var results = [];
-            for (var k in this.unifiers) {
-                var u = this.unifiers[k];
-                var t = this.getUnifiedType(u.unifier, [], {});
-                results.push("type unifier for " + k + ", unifier name " + u.name + ", unifying type " + t);
-            }
-            return results.join('\n');
-        };
+        Object.defineProperty(Unifier.prototype, "state", {
+            // Debug function that dumps prints out a representation of the engine state. 
+            get: function () {
+                var results = [];
+                for (var k in this.unifiers) {
+                    var u = this.unifiers[k];
+                    //var t = this.getUnifiedType(u.unifier, [], {});
+                    var t = u.unifier;
+                    results.push("type unifier for " + k + ", unifier name " + u.name + ", unifying type " + t);
+                }
+                return results.join('\n');
+            },
+            enumerable: true,
+            configurable: true
+        });
         // Replaces all variables in a type expression with the unified version
         // The previousVars variable allows detection of cyclical references
         Unifier.prototype.getUnifiedType = function (expr, previousVars, unifiedVars) {
@@ -341,8 +358,7 @@ var TypeInference;
                 r = t1;
             else
                 r = this.unifyTypes(t1, t2, depth + 1);
-            if (TypeInference.trace)
-                console.log("Chose type for unification " + r + " between " + t1 + " and " + t2 + " at depth " + depth);
+            //if (trace) console.log(`Chose type for unification ${r} between ${t1} and ${t2} at depth ${depth}`)
             return r;
         };
         // Unifying lists involves unifying each element
@@ -362,6 +378,58 @@ var TypeInference;
                 if (t instanceof TypeVariable)
                     if (t.name == varName)
                         this.unifiers[x] = u;
+            }
+        };
+        // Go through a type and replace all instances of a variable with the new type
+        // unless the new type is a variable. 
+        Unifier.prototype._replaceVarWithType = function (target, varName, replace) {
+            //if (trace) console.log("Replacing variable " + varName + " in target  " + target + " with " + replace);
+            // Just leave it as is. 
+            // Replacing a variable with a variable is kind of meaningless.
+            if (replace instanceof TypeVariable)
+                return target;
+            // Create new parameter names as needed 
+            if (replace instanceof TypeArray) {
+                if (replace.isPolyType) {
+                    // Get some new parameters for the poly type
+                    replace = freshParameterNames(replace, this.id++);
+                }
+            }
+            // Look at the target type and decide what to do. 
+            if (target instanceof TypeVariable) {
+                if (target.name == varName)
+                    return replace;
+                else
+                    return target;
+            }
+            else if (target instanceof TypeConstant) {
+                return target;
+            }
+            else if (target instanceof TypeArray) {
+                // TODO?: look at the parameters. Am I replacing a parameter? If so, throw it out. 
+                // BUT!!: I don't think I have to do this step, because at the end the type will be constructed correctly.
+                return target.clone({ varName: replace });
+            }
+            else {
+                throw new Error("Unrecognized kind of type " + target);
+            }
+        };
+        Object.defineProperty(Unifier.prototype, "_allUnifiers", {
+            // Returns all of the unifiers as an array 
+            get: function () {
+                var r = [];
+                for (var k in this.unifiers)
+                    r.push(this.unifiers[k]);
+                return r;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        // Update all unifiers once I am making a replacement 
+        Unifier.prototype._updateAllUnifiers = function (a, t) {
+            for (var _i = 0, _a = this._allUnifiers; _i < _a.length; _i++) {
+                var tu = _a[_i];
+                tu.unifier = this._replaceVarWithType(tu.unifier, a, t);
             }
         };
         // Computes the best unifier between the current unifier and the new variable.        
@@ -700,7 +768,7 @@ var TypeInference;
         var output = e.getUnifiedType(outG, [], {});
         var r = functionType(input, output);
         if (TypeInference.trace) {
-            console.log(e.state());
+            console.log(e.state);
             console.log("Intermediate result: " + r);
         }
         // Recompute parameters.
@@ -754,15 +822,20 @@ var TypeInference;
                 var newOutputType = this.introduceVariable(t.name + "_o");
                 var fxnType = functionType(newInputType, newOutputType);
                 fxnType.computeParameters();
-                // Unify the new function type with the old variable 
+                // Unify the new function type with the old variable                 
                 this.unifier.unifyTypes(t, fxnType);
                 t = fxnType;
             }
-            // What is the input of the function: unify with the argument.
+            // What is the input of the function: unify with the argument
             var input = functionInput(t);
             var output = functionOutput(t);
+            if (TypeInference.trace)
+                this.logState("before function application");
             this.unifier.unifyTypes(input, args);
-            return this.unifier.getUnifiedType(output, [], {});
+            if (TypeInference.trace)
+                this.logState("after function application");
+            //return this.unifier.getUnifiedType(output, [], {});
+            return output;
         };
         ScopedTypeInferenceEngine.prototype.introduceVariable = function (name) {
             var t = typeVariable(name + '$' + this.id++);
@@ -772,7 +845,7 @@ var TypeInference;
         };
         ScopedTypeInferenceEngine.prototype.lookupOrIntroduceVariable = function (name) {
             var n = this.indexOfVariable(name);
-            return (n < 0) ? this.introduceVariable(name) : this.types[n];
+            return (n < 0) ? this.introduceVariable(name) : this.getUnifiedType(this.types[n]);
         };
         ScopedTypeInferenceEngine.prototype.assignVariable = function (name, t) {
             return this.unifier.unifyTypes(this.lookupVariable(name), t);
@@ -784,7 +857,7 @@ var TypeInference;
             var n = this.indexOfVariable(name);
             if (n < 0)
                 throw new Error("Could not find variable: " + name);
-            return this.types[n];
+            return this.getUnifiedType(this.types[n]);
         };
         ScopedTypeInferenceEngine.prototype.getUnifiedType = function (t) {
             var r = this.unifier.getUnifiedType(t, [], {});
@@ -795,6 +868,26 @@ var TypeInference;
         ScopedTypeInferenceEngine.prototype.popVariable = function () {
             this.types.pop();
             this.names.pop();
+        };
+        Object.defineProperty(ScopedTypeInferenceEngine.prototype, "state", {
+            get: function () {
+                var r = [];
+                for (var i = 0; i < this.types.length; ++i) {
+                    var t = this.types[i];
+                    var n = this.names[i];
+                    var u = this.getUnifiedType(t);
+                    r.push(n + " : " + t + " = " + u);
+                }
+                return r.join("\n");
+            },
+            enumerable: true,
+            configurable: true
+        });
+        ScopedTypeInferenceEngine.prototype.logState = function (msg) {
+            if (msg === void 0) { msg = ""; }
+            console.log("Inference engine state " + msg);
+            console.log(this.state);
+            console.log(this.unifier.state);
         };
         return ScopedTypeInferenceEngine;
     }());

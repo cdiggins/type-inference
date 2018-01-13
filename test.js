@@ -183,19 +183,19 @@ function astToType(ast) {
     }
 }
 function lambdaAstToType(ast, engine) {
+    if (type_inference_1.TypeInference.trace) {
+        console.log("Parsing: " + ast.allText);
+    }
     switch (ast.rule.name) {
         case "abstraction":
             {
                 var arg = engine.introduceVariable(ast.children[0].allText);
                 var body = lambdaAstToType(ast.children[1], engine);
-                var fxn = type_inference_1.TypeInference.functionType(arg, body);
-                if (type_inference_1.TypeInference.trace) {
-                    console.log("Argument: " + arg);
-                    console.log("Body: " + body);
-                    console.log("Function: " + fxn);
-                }
+                var r = type_inference_1.TypeInference.functionType(arg, body);
                 engine.popVariable();
-                return fxn;
+                var final = engine.getUnifiedType(r);
+                console.log("Abstract: " + ast.allText + " : " + r + " = " + final);
+                return final;
             }
         case "parenExpr":
             return lambdaAstToType(ast.children[0], engine);
@@ -208,22 +208,19 @@ function lambdaAstToType(ast, engine) {
                 var r = lambdaAstToType(ast.children[0], engine);
                 for (var i = 1; i < ast.children.length; ++i) {
                     var args = lambdaAstToType(ast.children[i], engine);
-                    if (type_inference_1.TypeInference.trace) {
-                        console.log("Applying: " + r);
-                        console.log("To arguments: " + args);
-                    }
                     r = engine.applyFunction(r, args);
-                    if (type_inference_1.TypeInference.trace) {
-                        console.log("Result: " + r);
-                    }
                 }
-                return r;
+                var final = engine.getUnifiedType(r);
+                if (type_inference_1.TypeInference.trace) {
+                    console.log("Application: " + ast.allText + " : " + r + " = " + final);
+                }
+                return final;
             }
         default:
             throw new Error("Unrecognized ast rule " + ast.rule);
     }
 }
-function stringToLambdaExprType(s) {
+function lambdaExprType(s) {
     var e = new type_inference_1.TypeInference.ScopedTypeInferenceEngine();
     var ast = lcParser(s);
     if (ast.end != s.length)
@@ -306,7 +303,7 @@ function testCombinators() {
     for (var k in combinators) {
         try {
             var s = combinators[k];
-            var t = stringToLambdaExprType(s);
+            var t = lambdaExprType(s);
             console.log(k + " = " + s + " : " + t);
         }
         catch (e) {
@@ -314,20 +311,21 @@ function testCombinators() {
         }
     }
 }
+function testLambdaTerm(term, type) {
+    try {
+        var inf = lambdaExprType(term);
+        if (inf.toString() != type)
+            throw new Error("Expected type for " + term + " was " + type + " got " + inf);
+        console.log("PASSED: " + term + " : " + type);
+    }
+    catch (e) {
+        console.log("FAILED: " + term + " " + e);
+    }
+}
 function testLambdaCalculus() {
     for (var _i = 0, lambdaTests_1 = lambdaTests; _i < lambdaTests_1.length; _i++) {
         var test = lambdaTests_1[_i];
-        try {
-            var s = test[0];
-            var t = test[1];
-            var inf = stringToLambdaExprType(s);
-            if (inf.toString() != t)
-                throw new Error("Expected type " + s + " got " + inf);
-            console.log(s + " : " + t);
-        }
-        catch (e) {
-            console.log("FAILED: " + test[0] + " " + e);
-        }
+        testLambdaTerm(test[0], test[1]);
     }
 }
 function printCatTypes() {
@@ -365,41 +363,57 @@ function issue1InCat() {
     t = type_inference_1.TypeInference.alphabetizeVarNames(t);
     console.log(t.toString());
 }
-testCatTypes();
-testCombinators();
-testLambdaCalculus();
-process.exit();
-/*
-    // Applies a function to input arguments and returns the result
-    export function applyFunction(fxn:TypeArray, args:Type) : Type {
-        if (trace) {
-            console.log("Applying function: " + fxn + ", arguments: " + args);
+function compareTypes(t1, t2) {
+    {
+        var r1 = type_inference_1.TypeInference.normalizeVarNames(t1).toString();
+        var r2 = type_inference_1.TypeInference.normalizeVarNames(t2).toString();
+        if (r1 != r2) {
+            throw new Error("Types are not the same when normalized: " + r1 + " and " + r2);
         }
-        
-        // FreshParameterNames or FreshVariableNames??
-        //fxn = freshParameterNames(fxn, 0) as TypeArray;
-        //args = freshParameterNames(args, 1);
-        //fxn = freshVariableNames(fxn, 0) as TypeArray;
-        //args = freshVariableNames(args, 1);
-
-        if (trace) {
-            console.log("After renaming, function: " + fxn + ", arguments: " + args);
-        }
-
-        var input = functionInput(fxn);
-        var output = functionOutput(fxn);
-
-        var u = new Unifier();
-        u.unifyTypes(input, args);
-        var r = u.getUnifiedType(output, [], {});
-
-        if (trace) {
-            console.log("Output type: " + r);
-        }
-        return r;
     }
-
+    {
+        var r1 = type_inference_1.TypeInference.alphabetizeVarNames(t1).toString();
+        var r2 = type_inference_1.TypeInference.alphabetizeVarNames(t2).toString();
+        if (r1 != r2) {
+            throw new Error("Types are not the same when alphabetized: " + r1 + " and " + r2);
+        }
+    }
+}
+function testCloning() {
+    var types = catTests.map(function (t) { return catType(t[0]); });
+    for (var _i = 0, types_1 = types; _i < types_1.length; _i++) {
+        var t = types_1[_i];
+        try {
+            var r1 = type_inference_1.TypeInference.freshParameterNames(t, 0);
+            var r2 = type_inference_1.TypeInference.freshVariableNames(t, 0);
+            var r3 = t.clone({});
+            compareTypes(t, r1);
+            compareTypes(t, r2);
+            compareTypes(t, r3);
+        }
+        catch (e) {
+            console.log("FAILED cloning test of " + t + " with message " + e);
+        }
+    }
+}
+function issue1() {
+    type_inference_1.TypeInference.trace = true;
+    testLambdaTerm("(\\i.(i \\x.x) (i 0)) \\y.y", "Num");
+}
+function issue1b() {
+    type_inference_1.TypeInference.trace = true;
+    testLambdaTerm("(\\i.(i \\x.x) (i 0))", "!b.(!a.(a -> b) -> b)");
+}
+/*
+testCatTypes();
+testLambdaCalculus();
+testCombinators();
+testCloning();
 */
+// Passes in Cat!
+//issue1InCat();
+issue1b();
+process.exit();
 // TODO: 
 // Test these equalities: 
 // [t] apply = t

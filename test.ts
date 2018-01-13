@@ -205,20 +205,18 @@ function astToType(ast) : ti.Type {
 }  
 
 function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : ti.Type {
+    if (ti.trace) { console.log("Parsing: " + ast.allText); }
     switch (ast.rule.name) 
     {
         case "abstraction":
             {
                 var arg = engine.introduceVariable(ast.children[0].allText);                
                 var body = lambdaAstToType(ast.children[1], engine);
-                var fxn : ti.TypeArray = ti.functionType(arg, body);
-                if (ti.trace) {
-                    console.log("Argument: " + arg);
-                    console.log("Body: " + body);
-                    console.log("Function: " + fxn);
-                }
+                var r : ti.Type = ti.functionType(arg, body);
                 engine.popVariable();
-                return fxn;
+                var final = engine.getUnifiedType(r);
+                console.log("Abstract: " + ast.allText + " : " + r + " = " + final);
+                return final;
             }
         case "parenExpr":
             return lambdaAstToType(ast.children[0], engine);
@@ -227,27 +225,22 @@ function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : t
         case "number":
             return ti.typeConstant('Num');
         case "expr":
-            {                
+            {      
                 var r : ti.Type = lambdaAstToType(ast.children[0], engine);
                 for (var i=1; i < ast.children.length; ++i) {
                     var args = lambdaAstToType(ast.children[i], engine);
-                    if (ti.trace) {
-                        console.log("Applying: " + r);
-                        console.log("To arguments: " + args);
-                    }
                     r = engine.applyFunction(r, args);
-                    if (ti.trace) {
-                        console.log("Result: "  + r);
-                    }
-                }
-                return r;
+                }                
+                var final = engine.getUnifiedType(r);
+                if (ti.trace) { console.log("Application: " + ast.allText + " : " + r + " = " + final); }
+                return final;
             }
         default:
             throw new Error("Unrecognized ast rule " + ast.rule);
     }
 }
 
-function stringToLambdaExprType(s:string) : ti.Type {
+function lambdaExprType(s:string) : ti.Type {
     var e = new ti.ScopedTypeInferenceEngine();
     var ast = lcParser(s);
     if (ast.end != s.length) 
@@ -335,7 +328,7 @@ function testCombinators() {
     for (var k in combinators) {
         try {
             var s = combinators[k];        
-            var t = stringToLambdaExprType(s);
+            var t = lambdaExprType(s);
             console.log(k + " = " + s + " : " + t);
         }
         catch (e) {
@@ -344,20 +337,21 @@ function testCombinators() {
     }
 }
 
-function testLambdaCalculus() {
-    for (var test of lambdaTests) {
-        try {
-            var s = test[0];
-            var t = test[1];
-            var inf = stringToLambdaExprType(s);
-            if (inf.toString() != t) 
-                throw new Error("Expected type " + s + " got " + inf);
-            console.log("PASSED: " + s + " : " + t);
-        }
-        catch (e) {
-            console.log("FAILED: " + test[0] + " " + e);
-        }
+function testLambdaTerm(term:string, type:string) {
+    try {
+        var inf = lambdaExprType(term);
+        if (inf.toString() != type) 
+            throw new Error("Expected type for " + term + " was " + type + " got " + inf);
+        console.log("PASSED: " + term + " : " + type);
     }
+    catch (e) {
+        console.log("FAILED: " + term + " " + e);
+    }
+}
+
+function testLambdaCalculus() {
+    for (var test of lambdaTests) 
+        testLambdaTerm(test[0], test[1]);
 }
 
 function printCatTypes() {
@@ -382,8 +376,7 @@ function testCatType(term:string, type:string) {
     }
 }
 
-function testCatTypes() 
-{
+function testCatTypes() {
     console.log("Testing Cat expression inference")
     for (var xs of catTests) 
         testCatType(xs[0], xs[1]);
@@ -399,47 +392,65 @@ function issue1InCat() {
     console.log(t.toString());
 }
 
+function compareTypes(t1:ti.Type, t2:ti.Type) {
+    {
+        var r1 = ti.normalizeVarNames(t1).toString();
+        var r2 = ti.normalizeVarNames(t2).toString();
+        if (r1 != r2) {
+            throw new Error("Types are not the same when normalized: " + r1 + " and " + r2);
+        }
+    }
+    {
+        var r1 = ti.alphabetizeVarNames(t1).toString();
+        var r2 = ti.alphabetizeVarNames(t2).toString();
+        if (r1 != r2) {
+            throw new Error("Types are not the same when alphabetized: " + r1 + " and " + r2);
+        }
+    } 
+}
+
+function testCloning() {
+    var types = catTests.map(t => catType(t[0]));
+    for (var t of types) {
+        try {
+            var r1 = ti.freshParameterNames(t, 0);
+            var r2 = ti.freshVariableNames(t, 0);
+            var r3 = t.clone({});
+            compareTypes(t, r1);
+            compareTypes(t, r2);
+            compareTypes(t, r3);
+        }
+        catch (e) {
+            console.log("FAILED cloning test of " + t + " with message " + e);
+        }
+    }
+}
+
+function issue1() {
+    ti.trace = true;
+    testLambdaTerm("(\\i.(i \\x.x) (i 0)) \\y.y", "Num");
+}
+
+function issue1b() {
+    ti.trace = true;
+    testLambdaTerm("(\\i.(i \\x.x) (i 0))", "!b.(!a.(a -> b) -> b)");
+}   
+
+/*
 testCatTypes();
-testCombinators();
 testLambdaCalculus();
+testCombinators();
+testCloning();
+*/
 
 // Passes in Cat!
 //issue1InCat();
 
+issue1b();
+//issue1();
+
 declare var process : any;
 process.exit();
-
-/*
-    // Applies a function to input arguments and returns the result 
-    export function applyFunction(fxn:TypeArray, args:Type) : Type {
-        if (trace) {
-            console.log("Applying function: " + fxn + ", arguments: " + args);
-        }
-        
-        // FreshParameterNames or FreshVariableNames??
-        //fxn = freshParameterNames(fxn, 0) as TypeArray;
-        //args = freshParameterNames(args, 1);
-        //fxn = freshVariableNames(fxn, 0) as TypeArray;
-        //args = freshVariableNames(args, 1);
-
-        if (trace) {
-            console.log("After renaming, function: " + fxn + ", arguments: " + args);
-        }
-
-        var input = functionInput(fxn);
-        var output = functionOutput(fxn);    
-
-        var u = new Unifier();
-        u.unifyTypes(input, args);
-        var r = u.getUnifiedType(output, [], {});
-
-        if (trace) {
-            console.log("Output type: " + r);
-        }
-        return r;
-    }
-
-*/
 
 // TODO: 
 // Test these equalities: 
@@ -455,4 +466,3 @@ process.exit();
 // [t] apply [u] apply = t u
 // [t] [u] compose apply = t u
 // t u v = [t] [u] compose [v] compose apply = [u] [v] compose [t] swap compose apply 
- 

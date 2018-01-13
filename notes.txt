@@ -1,0 +1,35 @@
+Application
+===========
+
+1. I can't use the same "unifier" at the top-level. When evaluating a child expression, yes, I reuse it. However: when 
+evaluating from left to right, the symbols have to be thrown out. 
+
+t(u)
+
+Never affects the type of t. Right? 
+
+However, it does tell us something interesting about how it is used, so we do start to learn a few things about it. 
+
+We do know it is a function. 
+
+We know that that function has to accept u as inputs. But it might not accept ONLY U as inputs. 
+
+My question is, does modeling this as function composition change anything? 
+
+t(u) => [u] [t] apply
+
+compose([u], [t], apply)?
+
+Let's try! 
+
+//===
+
+So the revelation is that I should keep "application" general. Applying f(t) does not mean that f only works on t. 
+
+I'm going to have to test that more in Cat. 
+
+At the same time, the result is very important. And the result can depend on the particular usage of the function. 
+
+//== 
+
+The tricky part is using the right unifier. One unifier in place A makes sense, and another in place B, makes sense.  

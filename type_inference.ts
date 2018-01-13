@@ -240,6 +240,12 @@ export module TypeInference
         // Given a type variable name find the unifier. Multiple type variables will map to the same unifier 
         unifiers : ITypeUnifierLookup = {};
 
+        // Returns a new type variable.
+        newTypeVar() : TypeVariable {
+            if (trace) console.log("Unable to unify, creating new type variable.");
+            return typeVariable("x#" + this.id++);
+        }
+
         // Unify both types, returning the most specific type possible. 
         // When a type variable is unified with something the new unifier is stored. 
         // Note: TypeFunctions and TypePairs ar handled as TypeArrays
@@ -247,8 +253,7 @@ export module TypeInference
         // * Lists are preferred over variables
         // * Given two variables, the first one is chosen. 
         unifyTypes(t1:Type, t2:Type, depth:number=0) : Type {            
-            if (trace)
-                console.log(`Unification depth ${depth} of ${t1} and ${t2}`);
+            // if (trace) console.log(`Unification depth ${depth} of ${t1} and ${t2}`);
             if (!t1 || !t2) 
                 throw new Error("Missing type expression");
             if (t1 == t2)
@@ -256,25 +261,33 @@ export module TypeInference
             // Variables are least preferred.  
             if (t1 instanceof TypeVariable) 
             {
-                return this._updateUnifier(t1, t2, depth);
+                var r = this._updateUnifier(t1, t2, depth);
+                this._updateAllUnifiers(t1.name, t2);
+                return r;
             }
             // If one is a variable its unifier with the new type. 
             else if (t2 instanceof TypeVariable) 
             {
-                return this._updateUnifier(t2, t1, depth);
+                var r = this._updateUnifier(t2, t1, depth);
+                this._updateAllUnifiers(t2.name, t1);
+                return r;
             }
             // Constants are best preferred 
             else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant)
             {
                 if (t1.name != t2.name)
-                    throw new Error("Can't unify: " + t1.name + " and " + t2.name);
+                    // TODO: temp
+                    return this.newTypeVar();
+                    //throw new Error("Can't unify: " + t1.name + " and " + t2.name);
                 else 
                     return t1;
             }
             // We know by the time we got here, if only one type is a TypeConstant the other is not a variable or a constant
             else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant)
             {
-                throw new Error("Can't unify: " + t1 + " and " + t2);
+                // TODO: temp
+                return this.newTypeVar();
+                //throw new Error("Can't unify: " + t1 + " and " + t2);
             }
             // Check for type list unification. We know that both should be type lists since other possibilities are exhausted. 
             else if (t1 instanceof TypeArray && t2 instanceof TypeArray)
@@ -285,11 +298,12 @@ export module TypeInference
         }
             
         // Debug function that dumps prints out a representation of the engine state. 
-        state() : string {
+        get state() : string {
             var results = [];
             for (var k in this.unifiers) {
                 var u = this.unifiers[k];
-                var t = this.getUnifiedType(u.unifier, [], {});
+                //var t = this.getUnifiedType(u.unifier, [], {});
+                var t = u.unifier;
                 results.push(`type unifier for ${ k }, unifier name ${ u.name }, unifying type ${t}`);
             }
             return results.join('\n');
@@ -347,8 +361,7 @@ export module TypeInference
                 r = t1;
             else 
                 r = this.unifyTypes(t1, t2, depth+1);
-            if (trace)
-                console.log(`Chose type for unification ${r} between ${t1} and ${t2} at depth ${depth}`)
+            //if (trace) console.log(`Chose type for unification ${r} between ${t1} and ${t2} at depth ${depth}`)
             return r;
         }
 
@@ -364,15 +377,69 @@ export module TypeInference
         }
 
         // All unifiers that refer to varName as the unifier are pointed to the new unifier 
-        _updateVariableUnifiers(varName:string, u:TypeUnifier) {
+        _updateVariableUnifiers(varName:string, u:TypeUnifier) {            
             for (var x in this.unifiers) {
                 var t = this.unifiers[x].unifier;
                 if (t instanceof TypeVariable) 
                     if (t.name == varName)
                         this.unifiers[x] = u;
             }
-        }            
+        }    
+        
+        // Go through a type and replace all instances of a variable with the new type
+        // unless the new type is a variable. 
+        _replaceVarWithType(target:Type, varName:string, replace:Type) : Type {            
+            //if (trace) console.log("Replacing variable " + varName + " in target  " + target + " with " + replace);
+
+            // Just leave it as is. 
+            // Replacing a variable with a variable is kind of meaningless.
+            if (replace instanceof TypeVariable)
+                return target;
+
+            // Create new parameter names as needed 
+            if (replace instanceof TypeArray)
+            {
+                if (replace.isPolyType) {
+                    // Get some new parameters for the poly type
+                    replace = freshParameterNames(replace, this.id++);
+                }
+            }
             
+            // Look at the target type and decide what to do. 
+            if (target instanceof TypeVariable) {
+                if (target.name == varName)
+                    return replace;
+                else    
+                    return target;
+            }
+            else if (target instanceof TypeConstant) {
+                return target;
+            }
+            else if (target instanceof TypeArray) {
+                // TODO?: look at the parameters. Am I replacing a parameter? If so, throw it out. 
+                // BUT!!: I don't think I have to do this step, because at the end the type will be constructed correctly.
+                return target.clone({varName:replace});
+            }
+            else {
+                throw new Error("Unrecognized kind of type " + target);
+            }
+        }
+
+        // Returns all of the unifiers as an array 
+        get _allUnifiers() : TypeUnifier[] {
+            var r : TypeUnifier[] = [];
+            for (var k in this.unifiers) 
+                r.push(this.unifiers[k]);
+            return r;
+        }
+
+        // Update all unifiers once I am making a replacement 
+        _updateAllUnifiers(a:string, t:Type) 
+        {
+            for (var tu of this._allUnifiers)
+                tu.unifier = this._replaceVarWithType(tu.unifier, a, t);
+        }
+                    
         // Computes the best unifier between the current unifier and the new variable.        
         // Updates all unifiers which point to a (or to t if t is a TypeVar) to use the new type. 
         _updateUnifier(a:TypeVariable, t:Type, depth:number) : Type {            
@@ -384,7 +451,7 @@ export module TypeInference
             this._updateVariableUnifiers(a.name, u);
             if (t instanceof TypeVariable) 
                 this._updateVariableUnifiers(t.name, u);
-
+                
             return u.unifier;            
         }
 
@@ -711,7 +778,7 @@ export module TypeInference
 
         var r = functionType(input, output);
         if (trace) {
-            console.log(e.state());
+            console.log(e.state);
             console.log("Intermediate result: " + r)
         }
 
@@ -770,16 +837,19 @@ export module TypeInference
                 var fxnType = functionType(newInputType, newOutputType);
                 fxnType.computeParameters();
                 
-                // Unify the new function type with the old variable 
+                // Unify the new function type with the old variable                 
                 this.unifier.unifyTypes(t, fxnType);
                 t = fxnType;
             }
 
-            // What is the input of the function: unify with the argument.
+            // What is the input of the function: unify with the argument
             var input = functionInput(t);
-            var output = functionOutput(t);    
+            var output = functionOutput(t);  
+            if (trace) this.logState("before function application");
             this.unifier.unifyTypes(input, args);    
-            return this.unifier.getUnifiedType(output, [], {});
+            if (trace) this.logState("after function application");
+            //return this.unifier.getUnifiedType(output, [], {});
+            return output;
         }
     
         introduceVariable(name:string) : TypeVariable{
@@ -791,7 +861,7 @@ export module TypeInference
     
         lookupOrIntroduceVariable(name:string) : Type {
             var n = this.indexOfVariable(name);
-            return (n < 0) ? this.introduceVariable(name) : this.types[n];
+            return (n < 0) ? this.introduceVariable(name) : this.getUnifiedType(this.types[n]);
         }
     
         assignVariable(name:string, t:Type) : Type {
@@ -805,7 +875,7 @@ export module TypeInference
         lookupVariable(name:string) : Type {
             var n = this.indexOfVariable(name);
             if (n < 0) throw new Error("Could not find variable: " + name);
-            return this.types[n];
+            return this.getUnifiedType(this.types[n]);
         }
     
         getUnifiedType(t:Type) : Type {
@@ -818,6 +888,23 @@ export module TypeInference
         popVariable() {
             this.types.pop();
             this.names.pop();
+        }
+
+        get state() : string {
+            var r = [];
+            for (var i=0; i < this.types.length; ++i) {
+                var t = this.types[i];
+                var n = this.names[i]
+                var u = this.getUnifiedType(t);
+                r.push(n + " : " + t + " = " + u);
+            }
+            return r.join("\n");
+        }
+
+        logState(msg:string = "") {
+            console.log("Inference engine state " + msg);
+            console.log(this.state);
+            console.log(this.unifier.state);
         }
     }
     
