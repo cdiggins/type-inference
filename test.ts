@@ -202,21 +202,49 @@ function astToType(ast) : ti.Type {
         default: 
             throw new Error("Unrecognized type expression: " + ast.name);
     }
-}  
+}
 
-function lambdaAstToType(ast:m.AstNode, engine:ti.ScopedTypeInferenceEngine) : ti.Type {
+class CatExpr {
+}
+
+class CatQuotation extends CatExpr {    
+    constructor(
+        public terms:CatExpr[]
+    )
+    {
+        super();
+    }
+}
+
+class CatConstant<T> extends CatExpr {    
+    constructor(
+        public value:T
+    )
+    {
+        super();
+    }
+}
+
+class CatInstruction extends CatExpr {
+    constructor(
+        public name:string
+    )
+    {
+        super();
+    }
+}
+
+function lambdaAstToType(ast:m.AstNode, e:ti.TypeInfenceEngine) : ti.Type {
     if (ti.trace) { console.log("Parsing: " + ast.allText); }
     switch (ast.rule.name) 
     {
         case "abstraction":
             {
-                var arg = engine.introduceVariable(ast.children[0].allText);                
-                var body = lambdaAstToType(ast.children[1], engine);
-                var r : ti.Type = ti.functionType(arg, body);
-                engine.popVariable();
-                var final = engine.getUnifiedType(r);
-                console.log("Abstract: " + ast.allText + " : " + r + " = " + final);
-                return final;
+                var arg = ast.children[0];
+                var vars2 = { ...vars, arg:u.id };
+                var v = e.introduceVariable();
+                return ti.functionInput(v, lambdaAstToType(ast.children[1], e.clone());
+
             }
         case "parenExpr":
             return lambdaAstToType(ast.children[0], engine);
