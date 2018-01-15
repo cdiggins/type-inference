@@ -33,3 +33,139 @@ At the same time, the result is very important. And the result can depend on the
 //== 
 
 The tricky part is using the right unifier. One unifier in place A makes sense, and another in place B, makes sense.  
+
+//==
+
+f g compose apply 
+
+x=>g=>f=>x' 
+
+\x.f(g(x)) == x f.g apply
+
+//==
+
+Rewrite without terms? Rewrite without free variables? 
+
+//==
+
+1. Lambda-lifting
+2. Alpha-renaming
+
+        var _this = this;
+        this.recExpr        = m.delay(() => _this.expr);
+        this.var            = m.identifier.ast;
+        this.number         = m.digits.ast;
+        this.boolean        = m.keyword("true").or(m.keyword("false")).ast;
+        this.abstraction    = m.guardedSeq("\\", this.var, ".").then(this.recExpr).ast;
+        this.parenExpr      = m.guardedSeq("(", this.recExpr, ")").ast;
+        this.binaryOperator = m.choice('<=','>=','==','!=','<','>','+','-','*','/','%').ast;
+        this.unaryOperator  = m.choice('+','-','!').ast;
+        this.unaryExpr      = m.guardedSeq(this.unaryOperator, m.ws, this.recExpr).ast;
+        this.binaryExpr     = m.seq(this.recExpr, m.ws, this.binaryOperator, m.ws, this.recExpr).ast;
+        this.expr           = m.choice(this.parenExpr, this.abstraction, this.unaryExpr, this.boolean, this.number, this.var).then(m.ws).oneOrMore.ast;
+
+
+    // Unused. 
+    export type Operator = '+'|'-'|'*'|'/'|'%'|'<'|'>'|'<='|'>='|'=='|'!='|'!';
+
+    export class ArithmeticExpr extends Redex {
+        constructor(
+            public readonly operator:string,
+            public readonly args:Redex[])
+        { 
+            super();
+            if (args.length < 1) throw new Error("At least one argument is required");
+            if (args.length > 2) throw new Error("At most two arguments are supported");
+        }
+
+        toString() : string {            
+            if (this.args.length == 2) return "(" + this.args[0] + " " + this.operator + " " + this.args[1] + ")";
+            if (this.args.length == 1) return "(" + this.operator + " " + this.args[0] + ")";
+            throw new Error("Only one or two operators are supported");
+        }
+
+        clone(lookup:IStringLookup={}) : ArithmeticExpr {
+            return new ArithmeticExpr(this.operator, this.args.map(a => a.clone(lookup)))
+        }
+    }
+
+/*
+# Lambda Calculus Implementation
+
+This file is an implementation of a parser, evaluator, and a couple of core algorithms for the 
+Lambda calculus. Yes, dear reader, you may say this has already been done and it is called "Lisp".
+
+ * http://www.users.waitrose.com/~hindley/SomePapers_PDFs/2006CarHin,HistlamRp.pdf
+ * https://en.wikipedia.org/wiki/Lambda_calculus
+ * https://en.wikipedia.org/wiki/Free_variables_and_bound_variables
+ * https://en.wikipedia.org/wiki/Lambda_lifting
+*/
+
+Building a Programming Language
+
+1. Example programming languages
+1. Language categories 
+1. Lambda calculus
+1. Type theory
+1. Stack-Based languages
+1. Combinatory logic
+1. Turing machines
+1. Van Neuman Architecture
+1. Lisp
+1. Forth
+
+//==
+
+# Implementing versus Embedding Concatenative Languages
+
+We implement a strongly typed concatenative language, Cat, which supports type-inference, but cannot be fully 
+embedded in a programming language based on the HM type system (like Haskell) while preserving the semantics and 
+type-inference. 
+
+# Overview 
+
+Strongly typed languages based on the HM type system like Haskell and ML, do not fully support the 
+embedding of strongly typed concatenative languages like Cat. The problem arises when trying to derive 
+a type when duplicating a polymorphic functions on the stack. 
+
+Paper structure. What we show. What we don't show. Why we think it is the way it is? Where are the proofs? 
+
+## Cat Evaluator
+
+## Cat Primitive Operations 
+
+## The Cat Type System 
+
+## The Cat Type Inference Algorithm
+
+## The type of `quote dup` 
+
+## Converting from the Lambda Calculus to Cat 
+
+## Converting from Cat to the Lambda Calculus 
+
+## Future Work 
+
+## Open Questions 
+
+//==
+
+# Converting from the Lambda Calculus to a Concatenative Language
+
+We present an algorithm for converting from the lambda calculus to a point-free form. 
+
+//==
+
+touch => dup pop 
+
+From Lambda calculus to Cat
+1. \x.[] => [pop] 
+1. \x.[x] => [touch]
+1. \x.[x x] => [dup]
+1. \x.[\y.[x]
+1. x y => apply
+
+
+
+
+
