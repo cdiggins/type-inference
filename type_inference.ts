@@ -802,9 +802,10 @@ export module TypeInference
 
     // Creates a function type that generates the given type.
     // If given no type returns the empty quotation.
-    export function quotation(x:Type) : TypeArray {
-        var row = typeVariable('_');        
-        x = freshParameterNames(x, 0);
+    export function quotation(x: Type) : TypeArray {
+        var row = typeVariable('_');
+        if (x != null)        
+            x = freshParameterNames(x, 0);
         return functionType(row, x ? typeArray([x, row]) : row);
     }
 

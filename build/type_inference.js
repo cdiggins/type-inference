@@ -793,7 +793,8 @@ var TypeInference;
     // If given no type returns the empty quotation.
     function quotation(x) {
         var row = typeVariable('_');
-        x = freshParameterNames(x, 0);
+        if (x != null)
+            x = freshParameterNames(x, 0);
         return functionType(row, x ? typeArray([x, row]) : row);
     }
     TypeInference.quotation = quotation;

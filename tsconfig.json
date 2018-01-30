@@ -3,7 +3,8 @@
     "compilerOptions": {
 		"target": "ES5",
 		"module": "commonjs",
-		"sourceMap": true
+		"sourceMap": true,
+		"outDir": "build",
 	},
 	"include": [
 		"*.ts"

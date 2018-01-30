@@ -165,7 +165,14 @@ From Lambda calculus to Cat
 1. \x.[\y.[x]
 1. x y => apply
 
+What is interesting is that Cat is more explicit about every action that happens to the environment 
+than the Lambda calculus. These are the advantages that Henry Baker talks about when he describes 
+"Linear Lisp". 
 
+1. Elimination of variables
+1. Replication of variables 
+1. Changing order of variables
+1. Application of functions 
 
-
+Let's consider a "Lambda Cat". 
 
