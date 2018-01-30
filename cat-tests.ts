@@ -12,7 +12,7 @@ import { catStdOps } from "./cat-library";
 const catTests = [
     // Primitive forms 
     ["", "!t0.(t0 -> t0)"],
-    ["id", "!t0!t1.((t0 t1) -> (t0 t1))"],
+   // ["id", "!t0!t1.((t0 t1) -> (t0 t1))"],
     ["apply", "!t1.(!t0.((t0 -> t1) t0) -> t1)"],
     ["compose", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) t3))"],
     ["quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) t1))"],
@@ -22,7 +22,7 @@ const catTests = [
 
     // Quotations of Primitives 
     ["[]", "!t0.(t0 -> (!t1.(t1 -> t1) t0))"],
-    ["[id]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 t2)) t0))"],
+    //["[id]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 t2)) t0))"],
     ["[apply]", "!t0.(t0 -> (!t2.(!t1.((t1 -> t2) t1) -> t2) t0))"],
     ["[pop]", "!t0.(t0 -> (!t2.(!t1.(t1 t2) -> t2) t0))"],
     ["[dup]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 (t1 t2))) t0))"],
@@ -114,6 +114,7 @@ function issue1InCat() {
     console.log(t.toString());
 }
 
+/*
 function testCloning() {
     var types = catTests.map(t => inferCatType(t[0]));
     for (var t of types) {
@@ -130,6 +131,7 @@ function testCloning() {
         }
     }
 }
+*/
 
 const lambdaCatTests = [
     "\\a",

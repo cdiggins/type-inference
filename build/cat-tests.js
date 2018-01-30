@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var type_inference_1 = require("./type_inference");
-var test_1 = require("./test");
 var type_parser_1 = require("./type-parser");
 var cat_types_1 = require("./cat-types");
 var cat_lambda_1 = require("./cat-lambda");
@@ -11,7 +10,7 @@ var lambda_calculus_to_cat_1 = require("./lambda-calculus-to-cat");
 var catTests = [
     // Primitive forms 
     ["", "!t0.(t0 -> t0)"],
-    ["id", "!t0!t1.((t0 t1) -> (t0 t1))"],
+    // ["id", "!t0!t1.((t0 t1) -> (t0 t1))"],
     ["apply", "!t1.(!t0.((t0 -> t1) t0) -> t1)"],
     ["compose", "!t1!t2!t3.(!t0.((t0 -> t1) ((t2 -> t0) t3)) -> ((t2 -> t1) t3))"],
     ["quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) t1))"],
@@ -20,7 +19,7 @@ var catTests = [
     ["pop", "!t1.(!t0.(t0 t1) -> t1)"],
     // Quotations of Primitives 
     ["[]", "!t0.(t0 -> (!t1.(t1 -> t1) t0))"],
-    ["[id]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 t2)) t0))"],
+    //["[id]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 t2)) t0))"],
     ["[apply]", "!t0.(t0 -> (!t2.(!t1.((t1 -> t2) t1) -> t2) t0))"],
     ["[pop]", "!t0.(t0 -> (!t2.(!t1.(t1 t2) -> t2) t0))"],
     ["[dup]", "!t0.(t0 -> (!t1!t2.((t1 t2) -> (t1 (t1 t2))) t0))"],
@@ -105,23 +104,24 @@ function issue1InCat() {
     t = type_inference_1.TypeInference.alphabetizeVarNames(t);
     console.log(t.toString());
 }
+/*
 function testCloning() {
-    var types = catTests.map(function (t) { return cat_types_1.inferCatType(t[0]); });
-    for (var _i = 0, types_1 = types; _i < types_1.length; _i++) {
-        var t = types_1[_i];
+    var types = catTests.map(t => inferCatType(t[0]));
+    for (var t of types) {
         try {
-            var r1 = type_inference_1.TypeInference.freshParameterNames(t, 0);
-            var r2 = type_inference_1.TypeInference.freshVariableNames(t, 0);
+            var r1 = ti.freshParameterNames(t, 0);
+            var r2 = ti.freshVariableNames(t, 0);
             var r3 = t.clone({});
-            test_1.compareTypes(t, r1);
-            test_1.compareTypes(t, r2);
-            test_1.compareTypes(t, r3);
+            compareTypes(t, r1);
+            compareTypes(t, r2);
+            compareTypes(t, r3);
         }
         catch (e) {
             console.log("FAILED cloning test of " + t + " with message " + e);
         }
     }
 }
+*/
 var lambdaCatTests = [
     "\\a",
     "\\a \\b",

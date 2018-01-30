@@ -776,6 +776,7 @@ var TypeInference;
         if (TypeInference.trace) {
             console.log("Final result: " + r);
         }
+        r = normalizeVarNames(r);
         return r;
     }
     TypeInference.composeFunctions = composeFunctions;
@@ -795,7 +796,10 @@ var TypeInference;
         var row = typeVariable('_');
         if (x != null)
             x = freshParameterNames(x, 0);
-        return functionType(row, x ? typeArray([x, row]) : row);
+        var r = functionType(row, x ? typeArray([x, row]) : row);
+        r.computeParameters();
+        r = normalizeVarNames(r);
+        return r;
     }
     TypeInference.quotation = quotation;
     // Returns the type of the id function 

@@ -787,6 +787,7 @@ export module TypeInference
         if (trace) {
             console.log("Final result: " + r);
         }
+        r = normalizeVarNames(r) as TypeArray;
         return r;        
     }
 
@@ -806,7 +807,10 @@ export module TypeInference
         var row = typeVariable('_');
         if (x != null)        
             x = freshParameterNames(x, 0);
-        return functionType(row, x ? typeArray([x, row]) : row);
+        var r = functionType(row, x ? typeArray([x, row]) : row);
+        r.computeParameters();
+        r = normalizeVarNames(r) as TypeArray;
+        return r;
     }
 
     // Returns the type of the id function 

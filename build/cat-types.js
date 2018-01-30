@@ -29,7 +29,7 @@ for (var op in cat_library_1.catStdOps) {
     var t = inferCatType(def);
     if (exports.verbose)
         console.log(op + " = " + def + " : " + t);
-    exports.catTypesParsed[op] = def;
+    exports.catTypesParsed[op] = t;
 }
 function catTypeFromAst(ast) {
     switch (ast.name) {

@@ -35,9 +35,8 @@ for (let op in catStdOps) {
     const t = inferCatType(def);
     if (verbose)
         console.log(op + " = " + def + " : " + t);
-    catTypesParsed[op] = def; 
+    catTypesParsed[op] = t; 
 }     
-
 
 function catTypeFromAst(ast: m.AstNode) : ti.TypeArray {
     switch (ast.name) {
