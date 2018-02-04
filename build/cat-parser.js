@@ -32,7 +32,7 @@ exports.catGrammar = new function () {
     this.recTerms = myna_parser_1.Myna.delay(function () { return _this.terms; });
     this.quotation = myna_parser_1.Myna.guardedSeq('[', myna_parser_1.Myna.ws, this.recTerms, myna_parser_1.Myna.ws, ']').ast;
     this.term = myna_parser_1.Myna.choice(this.param, this.var, this.quotation, this.integer, this.true, this.false, this.identifier);
-    this.terms = myna_parser_1.Myna.ws.then(this.term.ws.zeroOrMore);
+    this.terms = myna_parser_1.Myna.ws.then(this.term.ws.zeroOrMore).ast;
 };
 myna_parser_1.Myna.registerGrammar('cat', exports.catGrammar, exports.catGrammar.terms);
 exports.catParser = myna_parser_1.Myna.parsers['cat'];

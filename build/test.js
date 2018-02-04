@@ -2,23 +2,8 @@
 // This is a set of tests for the type-inference algorithm applied to lambda Calculus and the Concatenative calculus.
 // Running these tests require installation of the Myna parsing module. 
 Object.defineProperty(exports, "__esModule", { value: true });
-var type_inference_1 = require("./type_inference");
+var ti = require("./type_inference");
 var type_parser_1 = require("./type-parser");
-exports.lambdaTests = [
-    ["(\\i.(i \\x.x) (i 0)) \\y.y", "Num"],
-    ["0", "Num"],
-    ["\\x.x", "!a.(a -> a)"],
-    ["\\i.0", "!a.(a -> Num)"],
-    ["\\i.i 0", "!a.((Num -> a) -> a)"],
-    ["(\\i.0)", "!a.(a -> Num)"],
-    ["(\\i.i 0)", "!a.((Num -> a) -> a)"],
-    ["\\i.i (0)", "!a.((Num -> a) -> a)"],
-    ["(\\i.0) \\y.y", "Num"],
-    ["(\\i.0) (\\y.y)", "Num"],
-    ["(\\i.i) \\y.y", "!a.(a -> a)"],
-    ["(\\i.i) (\\y.y)", "!a.(a -> a)"],
-    ["(\\i.i) (\\x.x) (\\y.y)", "!a.(a -> a)"],
-];
 //==========================================================================================
 // Testing helper functions 
 function testParse(input, fail) {
@@ -50,9 +35,9 @@ function runTest(f, testName, expectFail) {
 }
 exports.runTest = runTest;
 function typeToString(t) {
-    if (t instanceof type_inference_1.TypeInference.TypeVariable)
+    if (t instanceof ti.TypeVariable)
         return "'" + t.name;
-    else if (t instanceof type_inference_1.TypeInference.TypeArray)
+    else if (t instanceof ti.TypeArray)
         return "(" + t.types.map(typeToString).join(" ") + ")";
     else
         return t.toString();
@@ -60,15 +45,15 @@ function typeToString(t) {
 exports.typeToString = typeToString;
 function compareTypes(t1, t2) {
     {
-        var r1 = type_inference_1.TypeInference.normalizeVarNames(t1).toString();
-        var r2 = type_inference_1.TypeInference.normalizeVarNames(t2).toString();
+        var r1 = ti.normalizeVarNames(t1).toString();
+        var r2 = ti.normalizeVarNames(t2).toString();
         if (r1 != r2) {
             throw new Error("Types are not the same when normalized: " + r1 + " and " + r2);
         }
     }
     {
-        var r1 = type_inference_1.TypeInference.alphabetizeVarNames(t1).toString();
-        var r2 = type_inference_1.TypeInference.alphabetizeVarNames(t2).toString();
+        var r1 = ti.alphabetizeVarNames(t1).toString();
+        var r2 = ti.alphabetizeVarNames(t2).toString();
         if (r1 != r2) {
             throw new Error("Types are not the same when alphabetized: " + r1 + " and " + r2);
         }

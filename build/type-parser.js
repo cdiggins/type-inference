@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var type_inference_1 = require("./type_inference");
+var ti = require("./type_inference");
 var myna_parser_1 = require("myna-parser");
 // Defines syntax parsers for type expression, the lambda calculus, and Cat 
 function registerGrammars() {
@@ -29,11 +29,11 @@ function astToType(ast) {
         return null;
     switch (ast.name) {
         case "typeVar":
-            return type_inference_1.TypeInference.typeVariable(ast.allText.substr(1));
+            return ti.typeVariable(ast.allText.substr(1));
         case "typeConstant":
-            return type_inference_1.TypeInference.typeConstant(ast.allText);
+            return ti.typeConstant(ast.allText);
         case "typeList":
-            return type_inference_1.TypeInference.typeArray(ast.children.map(astToType));
+            return ti.typeArray(ast.children.map(astToType));
         case "typeExpr":
             if (ast.children.length != 1)
                 throw new Error("Expected only one child of node, not " + ast.children.length);

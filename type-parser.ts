@@ -1,4 +1,4 @@
-import { TypeInference as ti } from "./type_inference";
+import * as ti from "./type_inference";
 import { Myna as m } from "myna-parser"
 
 // Defines syntax parsers for type expression, the lambda calculus, and Cat 

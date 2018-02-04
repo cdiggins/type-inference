@@ -20,5 +20,6 @@ exports.catStdOps = {
     dup6: "dup5 dup",
     dup7: "dup6 dup",
     dup8: "dup7 dup",
+    test: "dup [[0] dip apply []] dip",
 };
 //# sourceMappingURL=cat-library.js.map

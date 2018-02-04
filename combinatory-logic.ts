@@ -3,7 +3,7 @@
 // https://en.wikipedia.org/wiki/Iota_and_Jot
 // https://web.archive.org/web/20160507165333/http://semarch.linguistics.fas.nyu.edu/barker/Iota
 // https://en.wikipedia.org/wiki/Combinatory_logic
-
+// https://en.wikipedia.org/wiki/B,_C,_K,_W_system
 
 import * as lc from './lambda-calculus';
 import { parseRedex, Redex, RedexName, RedexAbstraction, RedexApplication, isFreeVariableIn } from './lambda-calculus';
@@ -51,28 +51,6 @@ export const combinators = {
 export const combinatorRedexes = {};
 for (var k in combinators)
     combinatorRedexes[k] = parseRedex(combinators[k]);
-
-export const combinatorDefs = {
-    B : "S(KS)K",
-    C : "S(BBS)(KK)",
-    D : "BB",
-    E : "B(BBB)",
-    F : "ETTET",
-    G : "BBC",
-    H : "BW(BC)",
-    I : "SKK",
-    J : "B(BC)(W(BC(B(BBB))))",
-    L : "CBM",
-    M : "SII",
-    O : "SI",
-    Q : "CB",
-    R : "BBT",
-    T : "CI",
-    U : "LO",
-    V : "BCT",
-    W : "C(BMR)",
-    Y : "SLL", 
-}
 
 export function parseCombinator(s: string) : Redex {
     // Inject white-spaces

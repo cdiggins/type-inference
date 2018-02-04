@@ -4,6 +4,7 @@
 // https://en.wikipedia.org/wiki/Iota_and_Jot
 // https://web.archive.org/web/20160507165333/http://semarch.linguistics.fas.nyu.edu/barker/Iota
 // https://en.wikipedia.org/wiki/Combinatory_logic
+// https://en.wikipedia.org/wiki/B,_C,_K,_W_system
 Object.defineProperty(exports, "__esModule", { value: true });
 var lambda_calculus_1 = require("./lambda-calculus");
 exports.combinators = {
@@ -48,27 +49,6 @@ exports.combinators = {
 exports.combinatorRedexes = {};
 for (var k in exports.combinators)
     exports.combinatorRedexes[k] = lambda_calculus_1.parseRedex(exports.combinators[k]);
-exports.combinatorDefs = {
-    B: "S(KS)K",
-    C: "S(BBS)(KK)",
-    D: "BB",
-    E: "B(BBB)",
-    F: "ETTET",
-    G: "BBC",
-    H: "BW(BC)",
-    I: "SKK",
-    J: "B(BC)(W(BC(B(BBB))))",
-    L: "CBM",
-    M: "SII",
-    O: "SI",
-    Q: "CB",
-    R: "BBT",
-    T: "CI",
-    U: "LO",
-    V: "BCT",
-    W: "C(BMR)",
-    Y: "SLL",
-};
 function parseCombinator(s) {
     // Inject white-spaces
     s = s.split('').join(' ');

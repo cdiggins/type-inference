@@ -218,13 +218,14 @@ function freeVariables(exp, r, vars) {
     else if (exp instanceof RedexName) {
         if (!(exp.name in vars))
             r[exp.name] = exp.name;
-        return r;
     }
+    return r;
 }
 exports.freeVariables = freeVariables;
 // Returns true if the named variable occurs in the expression
 function isFreeVariableIn(v, exp) {
-    return v in freeVariables(exp);
+    var free = freeVariables(exp);
+    return v in free;
 }
 exports.isFreeVariableIn = isFreeVariableIn;
 // Converts an expression by lifting a free variable out into an argument of an abstraction

@@ -206,13 +206,14 @@ export function freeVariables(exp:Redex, r:StringLookup={}, vars:StringLookup={}
     else if (exp instanceof RedexName) {
         if (!(exp.name in vars))
             r[exp.name] = exp.name;                            
-        return r;
     }
+    return r;
 }
 
 // Returns true if the named variable occurs in the expression
 export function isFreeVariableIn(v:string, exp:Redex) : boolean {
-    return v in freeVariables(exp);
+    var free = freeVariables(exp);
+    return v in free;
 }
 
 // Converts an expression by lifting a free variable out into an argument of an abstraction

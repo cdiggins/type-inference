@@ -1,5 +1,5 @@
 import { Myna as m } from "./node_modules/myna-parser/myna";
-import { TypeInference as ti } from "./type_inference";
+import * as ti from "./type_inference";
 import { parseType, typeParser } from './type-parser';
 import { catParser } from "./cat-parser";
 import { catStdOps } from "./cat-library";

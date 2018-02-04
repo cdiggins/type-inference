@@ -23,7 +23,7 @@ export const catGrammar = new function()
     this.recTerms       = m.delay(() => { return _this.terms; });
     this.quotation      = m.guardedSeq('[', m.ws, this.recTerms, m.ws, ']').ast;
     this.term           = m.choice(this.param, this.var, this.quotation, this.integer, this.true, this.false, this.identifier); 
-    this.terms          = m.ws.then(this.term.ws.zeroOrMore);
+    this.terms          = m.ws.then(this.term.ws.zeroOrMore).ast;
 }    
 
 m.registerGrammar('cat', catGrammar, catGrammar.terms);    
