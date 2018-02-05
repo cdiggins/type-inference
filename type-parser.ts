@@ -1,4 +1,4 @@
-import * as ti from "./type_inference";
+import { Type, typeConstant, typeVariable, typeArray } from "./type-system";
 import { Myna as m } from "myna-parser"
 
 // Defines syntax parsers for type expression, the lambda calculus, and Cat 
@@ -22,24 +22,24 @@ registerGrammars();
 
 export const typeParser  = m.parsers['type'];
 
-export function parseType(input:string) : ti.Type {
+export function parseType(input:string) : Type {
     var ast = typeParser(input);
     if (ast.end != input.length) 
         throw new Error("Only part of input was consumed");
     return astToType(ast);
 }
 
-function astToType(ast) : ti.Type {
+function astToType(ast) : Type {
     if (!ast)
         return null;
     switch (ast.name)
     {
         case "typeVar":
-            return ti.typeVariable(ast.allText.substr(1));
+            return typeVariable(ast.allText.substr(1));
         case "typeConstant":
-            return ti.typeConstant(ast.allText);
+            return typeConstant(ast.allText);
         case "typeList":
-            return ti.typeArray(ast.children.map(astToType));
+            return typeArray(ast.children.map(astToType));
         case "typeExpr":
             if (ast.children.length != 1) 
                 throw new Error("Expected only one child of node, not " + ast.children.length);

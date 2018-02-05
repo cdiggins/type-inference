@@ -210,6 +210,9 @@ Given a type array containing type variables assumed to be uniqely named in pote
 * https://en.wikipedia.org/wiki/Lambda_calculus
 * https://en.wikipedia.org/wiki/Typed_lambda_calculus
 * https://en.wikipedia.org/wiki/Unification_(computer_science) 
+* https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+
 * https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 * http://www.angelfire.com/tx4/cus/combinator/birds.html
 * https://github.com/leonidas/codeblog/blob/master/2012/2012-02-17-concatenative-haskell.md
+

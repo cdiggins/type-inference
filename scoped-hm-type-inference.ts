@@ -1,5 +1,4 @@
-import { Type, Unifier, isFunctionType, TypeVariable, functionType, functionOutput, functionInput, trace, typeVariable, TypeArray } from "./type_inference";
-
+import { Type, Unifier, isFunctionType, TypeVariable, functionType, functionOutput, functionInput, trace, typeVariable, TypeArray } from "./type-system";
 
 //=========================================================
 // A simple helper class for implementing scoped programming languages with names like the lambda calculus.

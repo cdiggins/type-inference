@@ -9,8 +9,6 @@
 // TODO: make type presentation look like TypeScript types 
 // TODO: make type presentation look like Haskell types
 
-import * as ti from "./type_inference";
-import { compareTypes } from "./test";
 import { parseType } from "./type-parser";
 import { parseCat, CatExpr, CatQuotation } from "./cat-parser";
 import { catTypes, inferCatType } from "./cat-types";
@@ -19,93 +17,54 @@ import { parseRedex, freeVariables, etaConversion, Redex, lambdaLift } from "./l
 import { abstractionElimination, combinators, combinatorToLambdaCalculus } from "./combinatory-logic";
 import { lambdaToPureCat, lambdaToCat } from "./lambda-calculus-to-cat";
 import { catStdOps } from "./cat-library";
-import { Type, isFunctionType, functionInput, TypeArray, TypeVariable, TypeConstant, functionOutput } from "./type_inference";
+import { Type, normalizeVarNames, alphabetizeVarNames, isFunctionType, functionInput, TypeArray, TypeVariable, TypeConstant, functionOutput, typeToString } from "./type-system";
 
 //==========================================================================================
 // Testing helper functions 
 
-export function testParse(input:string, fail:boolean=false) {
-    runTest(() => parseType(input), input, fail);
-}
-
-export function runTest(f:() => any, testName:string, expectFail:boolean = false) {
+export function runTest<TInput, TOutput>(testName:string, f:(TInput) => TOutput, input: TInput, output: TOutput=undefined, expectFail:boolean = false) {
     try {
-        console.log("Running test: " + testName);
-        var result = f();
-        console.log("Result = " + result);
-        if (result && !expectFail || !result && expectFail) {
-            console.log("PASSED");
-        }
-        else {
-            console.log("FAILED");
-        }
+        console.log("test " + testName);
+        console.log("  input:  " + input.toString());
+        const result = f(input);
+        console.log("  result: " + result.toString());
+        const success = !result || (result && !expectFail || !result && expectFail);
+        console.log(success ? "  passed" : "  FAILED"); 
     }   
     catch (e) {
         if (expectFail) {
-            console.log("PASSED: expected fail, error caught: " + e.message);
+            console.log("  passed: expected fail, error caught: " + e.message);
         }
         else {
-            console.log("FAILED: error caught: " + e.message);
+            console.log("  FAILED: error caught = " + e.message);
         }
     }
 }
 
-export function typeToString(t:ti.Type) : string {
-    if (t instanceof ti.TypeVariable) 
+export function catTypeToString(t:Type) : string {
+    if (t instanceof TypeVariable) 
         return "'" + t.name;
-    else if (t instanceof ti.TypeArray) 
-        return "(" + t.types.map(typeToString).join(" ") + ")";
+    else if (t instanceof TypeArray) 
+        return "(" + t.types.map(catTypeToString).join(" ") + ")";
     else 
         return t.toString();
 }
 
-export function compareTypes(t1:ti.Type, t2:ti.Type) {
+export function compareTypes(t1:Type, t2:Type) {
     {
-        var r1 = ti.normalizeVarNames(t1).toString();
-        var r2 = ti.normalizeVarNames(t2).toString();
+        var r1 = normalizeVarNames(t1).toString();
+        var r2 = normalizeVarNames(t2).toString();
         if (r1 != r2) {
             throw new Error("Types are not the same when normalized: " + r1 + " and " + r2);
         }
     }
     {
-        var r1 = ti.alphabetizeVarNames(t1).toString();
-        var r2 = ti.alphabetizeVarNames(t2).toString();
+        var r1 = alphabetizeVarNames(t1).toString();
+        var r2 = alphabetizeVarNames(t2).toString();
         if (r1 != r2) {
             throw new Error("Types are not the same when alphabetized: " + r1 + " and " + r2);
         }
     } 
-}
-
-function flattenFunctionIO(t: Type): Type[] {
-    if (t instanceof ti.TypeArray) {
-        return [t.types[0], ...flattenFunctionIO(t.types[1])];
-    }
-    else {
-        return [t];
-    }
-}
-
-function functionInputToString(t: Type): string {
-    return flattenFunctionIO(functionInput(t)).map(typeToString).join(' ')
-}
-
-function functionOutputToString(t: Type): string {
-    return flattenFunctionIO(functionOutput(t)).map(typeToString).join(' ')
-}
-
-function typeToString(t: Type): string {
-    if (isFunctionType(t)) {
-        return "(" + functionInputToString(t) + " -> " + functionOutputToString(t) + ")";
-    }    
-    else if (t instanceof TypeVariable) {
-        return t.name; 
-    }
-    else if (t instanceof TypeConstant) {
-        return t.name;
-    }
-    else if (t instanceof TypeArray) {
-        return "[" + t.types.map(typeToString).join(' ') + "]";
-    }
 }
 
 // Some identities 
@@ -226,37 +185,29 @@ function printCatTypes() {
     }
 }
 
-function testCatType(term:string, type:string) {
-    var exp = type;
-    var inf = inferCatType(term);
-    var r = ti.normalizeVarNames(inf) as ti.TypeArray;
-    if (r.toString() != exp) {
-        console.log("FAILED: " + term + " + expected " + exp + " got " + r);
-    }
-    else {
-        console.log("PASSED: " + term + " : " + exp);
-    }
-}
-
-function testCatTypes() {
+function testCatTermsCommon() {
     console.log("Testing Cat expression inference")
+    let i = 0;
     for (var xs of catTests) 
-        testCatType(xs[0], xs[1]);
+        runTest("Cat Inference Test " + i++, 
+            (x) => normalizeVarNames(inferCatType(x)).toString(), 
+            xs[0], 
+            xs[1]);
 }
 
 function issue1InCat() {
     var t = inferCatType("");
-    t = ti.alphabetizeVarNames(t) as ti.TypeArray;
+    t = alphabetizeVarNames(t) as TypeArray;
     console.log(t.toString());
 
     t = inferCatType("[id] dup [0 swap apply] swap quote compose apply [id] swap apply apply swap apply")
-    t = ti.alphabetizeVarNames(t) as ti.TypeArray;
+    t = alphabetizeVarNames(t) as TypeArray;
     console.log(t.toString());
 }
 
 /*
 function testCloning() {
-    var types = catTests.map(t => inferCatType(t[0]));
+    var types = catTesmap(t => inferCatType(t[0]));
     for (var t of types) {
         try {
             var r1 = ti.freshParameterNames(t, 0);
@@ -364,7 +315,7 @@ function printCatType(s: string) {
 
 function testCombinator(name: string, term: string, exp?: string) {
     try {
-        console.log("Testing Lambda term " + name);
+        console.log("Te33sting Lambda term " + name);
         const redex = parseRedex(term);
         console.log("Parsed redex: " + redex);
         testRedex(redex);
@@ -424,14 +375,18 @@ const catTestStrings = [
     "[] [[0] dip] apply",  
 ];
 
-function testCatTerms() {
+function testCatTermsWithVariance() {
+    let i=0;
     for (var ct of catTestStrings) {
-        const t = inferCatType(ct);
-        console.log("Type of " + ct + " : " + typeToString(t));
+        runTest("Test Cat Inference with Variance " + i++,
+            inferCatType, 
+            ct); 
     }
 }
 
-//testCatTypes();
+testCatTermsCommon();
+testCatTermsWithVariance();
+
 //testCombinators();
 //testLambdaTerms();
 // A B => A [B] apply 

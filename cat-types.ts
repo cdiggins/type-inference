@@ -1,5 +1,5 @@
 import { Myna as m } from "./node_modules/myna-parser/myna";
-import * as ti from "./type_inference";
+import { Type, quotation, typeConstant, TypeArray, idFunction, composeFunctionChain } from "./type-system";
 import { parseType, typeParser } from './type-parser';
 import { catParser } from "./cat-parser";
 import { catStdOps } from "./cat-library";
@@ -18,7 +18,7 @@ export const catTypes = {
 };
 
 // Converted into type expressions (so we don't reparse each time)
-export type TypeLookup = { [op: string] : ti.Type };
+export type TypeLookup = { [op: string] : Type };
 export const catTypesParsed : TypeLookup = { }
 
 // Parse the types
@@ -38,34 +38,34 @@ for (let op in catStdOps) {
     catTypesParsed[op] = t; 
 }     
 
-function catTypeFromAst(ast: m.AstNode) : ti.TypeArray {
+function catTypeFromAst(ast: m.AstNode) : TypeArray {
     switch (ast.name) {
         case "integer": 
-            return ti.quotation(ti.typeConstant('Num'));
+            return quotation(typeConstant('Num'));
         case "true": 
         case "false": 
-            return ti.quotation(ti.typeConstant('Bool'));
+            return quotation(typeConstant('Bool'));
         case "identifier": {
             if (!(ast.allText in catTypesParsed)) 
                 throw new Error("Could not find type for term: " + ast.allText);
-            return catTypesParsed[ast.allText] as ti.TypeArray;
+            return catTypesParsed[ast.allText] as TypeArray;
         }
         case "quotation": {
             var innerType = ast.children.length > 0
                 ? catTypeFromAst(ast.children[0])
-                : ti.idFunction()
-            return ti.quotation(innerType);
+                : idFunction()
+            return quotation(innerType);
         }
         case "terms": {
             var types = ast.children.map(catTypeFromAst);
-            return ti.composeFunctionChain(types);
+            return composeFunctionChain(types);
         }
         default:
             throw new Error("Could not figure out function type");
     }
 }
 
-export function inferCatType(s:string) : ti.TypeArray {
+export function inferCatType(s:string) : TypeArray {
     var ast = catParser(s);
     if (ast.allText.length != s.length)
         throw new Error("Could not parse the entire term: " + s);

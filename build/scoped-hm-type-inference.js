@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var type_inference_1 = require("./type_inference");
+var type_system_1 = require("./type-system");
 //=========================================================
 // A simple helper class for implementing scoped programming languages with names like the lambda calculus.
 // This class is more intended as an example of usage of the algorithm than for use in production code    
@@ -9,35 +9,35 @@ var ScopedTypeInferenceEngine = /** @class */ (function () {
         this.id = 0;
         this.names = [];
         this.types = [];
-        this.unifier = new type_inference_1.Unifier();
+        this.unifier = new type_system_1.Unifier();
     }
     ScopedTypeInferenceEngine.prototype.applyFunction = function (t, args) {
-        if (!type_inference_1.isFunctionType(t)) {
+        if (!type_system_1.isFunctionType(t)) {
             // Only variables and functions can be applied 
-            if (!(t instanceof type_inference_1.TypeVariable))
+            if (!(t instanceof type_system_1.TypeVariable))
                 throw new Error("Type is neither a function type or a type variable: " + t);
             // Generate a new function type 
             var newInputType = this.introduceVariable(t.name + "_i");
             var newOutputType = this.introduceVariable(t.name + "_o");
-            var fxnType = type_inference_1.functionType(newInputType, newOutputType);
+            var fxnType = type_system_1.functionType(newInputType, newOutputType);
             fxnType.computeParameters();
             // Unify the new function type with the old variable                 
             this.unifier.unifyTypes(t, fxnType);
             t = fxnType;
         }
         // What is the input of the function: unify with the argument
-        var input = type_inference_1.functionInput(t);
-        var output = type_inference_1.functionOutput(t);
-        if (type_inference_1.trace)
+        var input = type_system_1.functionInput(t);
+        var output = type_system_1.functionOutput(t);
+        if (type_system_1.trace)
             this.logState("before function application");
         this.unifier.unifyTypes(input, args);
-        if (type_inference_1.trace)
+        if (type_system_1.trace)
             this.logState("after function application");
         //return this.unifier.getUnifiedType(output, [], {});
         return output;
     };
     ScopedTypeInferenceEngine.prototype.introduceVariable = function (name) {
-        var t = type_inference_1.typeVariable(name + '$' + this.id++);
+        var t = type_system_1.typeVariable(name + '$' + this.id++);
         this.names.push(name);
         this.types.push(t);
         return t;
@@ -60,7 +60,7 @@ var ScopedTypeInferenceEngine = /** @class */ (function () {
     };
     ScopedTypeInferenceEngine.prototype.getUnifiedType = function (t) {
         var r = this.unifier.getUnifiedType(t, [], {});
-        if (r instanceof type_inference_1.TypeArray)
+        if (r instanceof type_system_1.TypeArray)
             r.computeParameters();
         return r;
     };

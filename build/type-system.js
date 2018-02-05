@@ -15,34 +15,14 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-/*
-    The problem is that the function constraint is tightend, but should remain loose.
-    It has to support at least a stack with an int. This means there is a constraint
-    that is carried forward: we can't constraint it incorrectly.
-
-    So if I passed it a function that works only on stacks with boolean on top,
-    it should fail, because it is used internally on an int.
-
-    This tells me something VERY interesting. Our types have to be constrained:
-    1. Universal polymorphism with intersection and union?
-    
-    What I wanted to express here was actually a union. Note: we can't just throw away the union.
-    It is important, as it is a
-    !A.(A | int) ->
-    
-    This is mind-blowing. So when do we use an intersection type?
-
-    When
-    
-*/
-// NOTE: where all of my references? I guess in the reference. 
-// https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
 // Turn on for debugging purposes
 exports.trace = false;
 function setTrace(b) {
     exports.trace = b;
 }
 exports.setTrace = setTrace;
+//=========================================
+// Name generation 
 // Used for generating new names 
 var id = 0;
 // Returns a new type variable.
@@ -50,6 +30,8 @@ function newTypeVar() {
     return typeVariable("$" + id++);
 }
 exports.newTypeVar = newTypeVar;
+//=========================================
+// Classes that represent kinds of types  
 // Base class of a type: either a TypeArray, TypeVariable, or TypeConstant
 var Type = /** @class */ (function () {
     function Type() {
@@ -234,6 +216,8 @@ var TypeConstant = /** @class */ (function (_super) {
     return TypeConstant;
 }(Type));
 exports.TypeConstant = TypeConstant;
+//============================================================================
+// Helper classes and interfaces 
 // A type unifier is a mapping from a type variable to a best-fit type
 var TypeUnifier = /** @class */ (function () {
     function TypeUnifier(name, unifier) {
@@ -243,6 +227,8 @@ var TypeUnifier = /** @class */ (function () {
     return TypeUnifier;
 }());
 exports.TypeUnifier = TypeUnifier;
+//=======================================================================
+// Various functions
 // This is helper function helps determine whether a type variable should belong 
 function _isTypeVarUsedElsewhere(t, varName, pos) {
     for (var i = 0; i < t.types.length; ++i)
@@ -320,6 +306,9 @@ function unifyTypes(t1, t2, root) {
     }
 }
 exports.unifyTypes = unifyTypes;
+//================================================
+// A classes used to implement unification.
+// TODO: This is too complex I suspect and can be removed. 
 // Use this class to unify types that are constrained together.
 var Unifier = /** @class */ (function () {
     function Unifier() {
@@ -732,20 +721,6 @@ function isValid(type) {
     return true;
 }
 exports.isValid = isValid;
-//==========================================================================================
-// Type Environments 
-// 
-// This is the top-level implementation of a type inference algorithm that would be used in 
-// a programming language. 
-// Used to track equivalencies between types 
-var TypeConstraint = /** @class */ (function () {
-    function TypeConstraint(a, b, location) {
-        this.a = a;
-        this.b = b;
-        this.location = location;
-    }
-    return TypeConstraint;
-}());
 //============================================================
 // Top level type operations  
 // - Composition
@@ -876,4 +851,4 @@ function typeToString(t) {
     }
 }
 exports.typeToString = typeToString;
-//# sourceMappingURL=type_inference.js.map
+//# sourceMappingURL=type-system.js.map

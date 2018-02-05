@@ -4,32 +4,14 @@
 // Copyright 2017 by Christopher Diggins 
 // Licensed under the MIT License
 
-/*
-    The problem is that the function constraint is tightend, but should remain loose. 
-    It has to support at least a stack with an int. This means there is a constraint 
-    that is carried forward: we can't constraint it incorrectly. 
-
-    So if I passed it a function that works only on stacks with boolean on top, 
-    it should fail, because it is used internally on an int. 
-
-    This tells me something VERY interesting. Our types have to be constrained:
-    1. Universal polymorphism with intersection and union?
-    
-    What I wanted to express here was actually a union. Note: we can't just throw away the union. 
-    It is important, as it is a  
-    !A.(A | int) -> 
-    
-    This is mind-blowing. So when do we use an intersection type? 
-
-    When 
-    
-*/
-
 // Turn on for debugging purposes
 export var trace = false;
 export function setTrace(b: boolean) {
     trace = b;
 }
+
+//=========================================
+// Name generation 
 
 // Used for generating new names 
 var id=0;
@@ -39,6 +21,8 @@ export function newTypeVar() : TypeVariable {
     return typeVariable("$" + id++);
 }
 
+//=========================================
+// Classes that represent kinds of types  
 
 // Base class of a type: either a TypeArray, TypeVariable, or TypeConstant
 export class Type { 
@@ -220,6 +204,9 @@ export class TypeConstant extends Type
     }        
 }
 
+//============================================================================
+// Helper classes and interfaces 
+
 // A type unifier is a mapping from a type variable to a best-fit type
 export class TypeUnifier
 {
@@ -238,6 +225,9 @@ export interface ITypeUnifierLookup {
 export interface ITypeLookup {
     [varName:string] : Type;
 }
+
+//=======================================================================
+// Various functions
 
 // This is helper function helps determine whether a type variable should belong 
 export function _isTypeVarUsedElsewhere(t:TypeArray, varName:string, pos:number) : boolean {
@@ -328,6 +318,9 @@ export function unifyTypes(t1:Type, t2:Type, root:TypeArray)
     }
 }
     
+//================================================
+// A classes used to implement unification.
+// TODO: This is too complex I suspect and can be removed. 
 
 // Use this class to unify types that are constrained together.
 export class Unifier
@@ -748,29 +741,13 @@ export function isValid(type:Type) {
     return true;
 }
 
-//==========================================================================================
-// Type Environments 
-// 
-// This is the top-level implementation of a type inference algorithm that would be used in 
-// a programming language. 
-
-// Used to track equivalencies between types 
-class TypeConstraint 
-{
-    constructor(
-        public a:Type,
-        public b:Type,
-        public location:any)
-    { }
-}
-
 //============================================================
 // Top level type operations  
 // - Composition
 // - Quotation
 
 // Returns the function type that results by composing two function types
-export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
+export function composeFunctions_OLD(f:TypeArray, g:TypeArray) : TypeArray {
     if (!isFunctionType(f)) throw new Error("Expected a function type for f");
     if (!isFunctionType(g)) throw new Error("Expected a function type for g");
     
@@ -808,13 +785,12 @@ export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
 }
 
 // Returns the function type that results by composing two function types
-export function composeFunctions_NEW(f:TypeArray, g:TypeArray) : TypeArray {
+export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
     if (!isFunctionType(f)) throw new Error("Expected a function type for f");
     if (!isFunctionType(g)) throw new Error("Expected a function type for g");
     
     f = f.freshVariableNames(0) as TypeArray;
     g = g.freshVariableNames(1) as TypeArray;
-
 
     const outF = functionOutput(f);
     const inG = functionInput(g);
@@ -871,4 +847,39 @@ export function uniqueStrings(xs:string[]) : string[] {
     for (var x of xs)
         r[x] = true;
     return Object.keys(r);
+}
+
+//================================================================
+// Pretty type formatting. 
+
+function flattenFunctionIO(t: Type): Type[] {
+    if (t instanceof TypeArray) {
+        return [t.types[0], ...flattenFunctionIO(t.types[1])];
+    }
+    else {
+        return [t];
+    }
+}
+
+function functionInputToString(t: Type): string {
+    return flattenFunctionIO(functionInput(t)).map(typeToString).join(' ')
+}
+
+function functionOutputToString(t: Type): string {
+    return flattenFunctionIO(functionOutput(t)).map(typeToString).join(' ')
+}
+
+export function typeToString(t: Type): string {
+    if (isFunctionType(t)) {
+        return "(" + functionInputToString(t) + " -> " + functionOutputToString(t) + ")";
+    }    
+    else if (t instanceof TypeVariable) {
+        return t.name; 
+    }
+    else if (t instanceof TypeConstant) {
+        return t.name;
+    }
+    else if (t instanceof TypeArray) {
+        return "[" + t.types.map(typeToString).join(' ') + "]";
+    }
 }
