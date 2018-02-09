@@ -8,6 +8,7 @@ exports.verbose = true;
 // The types of the core Cat 
 exports.catTypes = {
     apply: "((('a -> 'b) 'a) -> 'b)",
+    call: "(((('a 's) -> ('b 's)) ('a 's)) -> ('b 's))",
     compose: "((('b -> 'c) (('a -> 'b) 'd)) -> (('a -> 'c) 'd))",
     quote: "(('a 'b) -> (('c -> ('a 'c)) 'b))",
     dup: "(('a 'b) -> ('a ('a 'b)))",
@@ -51,7 +52,7 @@ function catTypeFromAst(ast) {
         }
         case "terms": {
             var types = ast.children.map(catTypeFromAst);
-            return type_system_1.composeFunctionChain(types);
+            return type_system_1.composeFunctionChainReverse(types);
         }
         default:
             throw new Error("Could not figure out function type");

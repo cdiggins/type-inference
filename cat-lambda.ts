@@ -81,23 +81,20 @@ export function areVariablesSingleUse(xs: CatExpr[]): boolean {
 // Given a usages analysis, this will run through the variables and assign names to each instance, 
 // and increase the number of parameters.  
 export function makeVarsSingleUse(expr: CatExpr[], usages:IUsages, renaming:NameCount={}) : CatExpr[] {    
-    var r:CatExpr[] = [];
-    for (var i=0; i < expr.length; ++i) {
-        var t = expr[i];
+    let r:CatExpr[] = [];
+    for (let i=0; i < expr.length; ++i) {
+        let t = expr[i];
         if (t instanceof CatParam) {
             if (!(t.name in usages))
                 throw new Error("Could not find cat variable " + t.name);
-            var n = usages[t.name].length;
+            let n = usages[t.name].length;
             if (n == 0) {
                 r.push(new CatInstruction("pop"));
             }
-            else if (n == 2) {
-                r.push(new CatInstruction("dup"));
-            }
-            else if (n > 2) {
-                r.push(new CatInstruction("dup" + n));
-            }
-            for (var j=n-1; j >= 0; --j) {
+            for (let j=0; j < n; ++j) {
+                if (j < n-1) {
+                    r.push("dup");
+                }
                 r.push(new CatParam(t.name + '#' + j));                
             }
             renaming[t.name] = 0;

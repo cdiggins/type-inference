@@ -253,7 +253,7 @@ function _reassignAllTypeVars(varName, t) {
     t.typeVars.filter(function (v) { return v.name == varName; }).forEach(function (v) { return _reassignVarScheme(v, t); });
 }
 exports._reassignAllTypeVars = _reassignAllTypeVars;
-function replace(root, v, r) {
+function replaceVarWithType(root, v, r) {
     // TODO: look for the variable in t. That would be recursive.
     if (root instanceof TypeArray) {
         // If we are replacing a "type parameter"
@@ -263,11 +263,35 @@ function replace(root, v, r) {
             if (isTypeVariable(t, v.name))
                 root.types[i] = freshParameterNames(r);
             else if (t instanceof TypeArray)
-                replace(t, v, r);
+                replaceVarWithType(t, v, r);
         }
     }
 }
-exports.replace = replace;
+exports.replaceVarWithType = replaceVarWithType;
+function replaceTypeWithVar(root, t, v) {
+    // TODO: make sure I don't do this on the right side of an arrow. 
+    var i = root.types.indexOf(t);
+    if (i >= 0) {
+        root.types[i] = v;
+        root.typeVars.push(v);
+        root.typeParameterVars.push(v);
+        return;
+    }
+    for (var _i = 0, _a = root.types; _i < _a.length; _i++) {
+        var x = _a[_i];
+        if (x instanceof TypeArray)
+            replaceTypeWithVar(x, t, v);
+    }
+}
+exports.replaceTypeWithVar = replaceTypeWithVar;
+// Two types are different, so are being replaced with a new type-variable
+function resolveConflict(root, t1, t2) {
+    console.log("Resolving conflict between " + t1 + " and " + t2);
+    var v = newTypeVar();
+    replaceTypeWithVar(root, t1, v);
+    replaceTypeWithVar(root, t2, v);
+}
+exports.resolveConflict = resolveConflict;
 function unifyTypes(t1, t2, root) {
     if (!t1 || !t2 || !root)
         throw new Error("Argument error");
@@ -278,19 +302,19 @@ function unifyTypes(t1, t2, root) {
     if (t1 instanceof TypeVariable) {
         if (t2 instanceof TypeVariable && t1.name === t2.name)
             return;
-        replace(root, t1, t2);
+        replaceVarWithType(root, t1, t2);
         if (exports.trace)
             console.log("Replaced: " + t1.name + " with " + t2 + " = " + root);
     }
     else if (t2 instanceof TypeVariable) {
-        replace(root, t2, t1);
+        replaceVarWithType(root, t2, t1);
     }
     else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant) {
         if (t1.name !== t2.name)
-            throw new Error("Can't unify constant: " + t1.name + " and " + t2.name);
+            resolveConflict(root, t1, t2);
     }
     else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant) {
-        throw new Error("Can't unify constant with non-constant: " + t1 + " and " + t2);
+        resolveConflict(root, t1, t2);
     }
     else if (t1 instanceof TypeArray && t2 instanceof TypeArray) {
         if (t1.types.length != t2.types.length)
@@ -792,6 +816,16 @@ function composeFunctionChain(fxns) {
     return t;
 }
 exports.composeFunctionChain = composeFunctionChain;
+// Composes a chain of functions in reverse. Should give the same result 
+function composeFunctionChainReverse(fxns) {
+    if (fxns.length == 0)
+        return idFunction();
+    var t = fxns[fxns.length - 1];
+    for (var i = fxns.length - 2; i >= 0; --i)
+        t = composeFunctions(fxns[i], t);
+    return t;
+}
+exports.composeFunctionChainReverse = composeFunctionChainReverse;
 // Creates a function type that generates the given type.
 // If given no type returns the empty quotation.
 function quotation(x) {

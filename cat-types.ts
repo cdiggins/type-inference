@@ -1,5 +1,5 @@
 import { Myna as m } from "./node_modules/myna-parser/myna";
-import { Type, quotation, typeConstant, TypeArray, idFunction, composeFunctionChain } from "./type-system";
+import { Type, quotation, typeConstant, TypeArray, idFunction, composeFunctionChain, composeFunctionChainReverse } from "./type-system";
 import { parseType, typeParser } from './type-parser';
 import { catParser } from "./cat-parser";
 import { catStdOps } from "./cat-library";
@@ -9,6 +9,7 @@ export var verbose: boolean = true;
 // The types of the core Cat 
 export const catTypes = {
     apply   : "((('a -> 'b) 'a) -> 'b)",
+    call    : "(((('a 's) -> ('b 's)) ('a 's)) -> ('b 's))",
     compose : "((('b -> 'c) (('a -> 'b) 'd)) -> (('a -> 'c) 'd))",
     quote   : "(('a 'b) -> (('c -> ('a 'c)) 'b))",
     dup     : "(('a 'b) -> ('a ('a 'b)))",
@@ -58,7 +59,7 @@ function catTypeFromAst(ast: m.AstNode) : TypeArray {
         }
         case "terms": {
             var types = ast.children.map(catTypeFromAst);
-            return composeFunctionChain(types);
+            return composeFunctionChainReverse(types);
         }
         default:
             throw new Error("Could not figure out function type");

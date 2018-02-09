@@ -251,7 +251,7 @@ export function _reassignAllTypeVars(varName:string, t:TypeArray) {
     t.typeVars.filter(v => v.name == varName).forEach(v => _reassignVarScheme(v, t));
 }
 
-export function replace(root:TypeArray, v:TypeVariable, r:Type) {
+export function replaceVarWithType(root:TypeArray, v:TypeVariable, r:Type) {
     // TODO: look for the variable in t. That would be recursive.
     if (root instanceof TypeArray) {
         // If we are replacing a "type parameter"
@@ -262,9 +262,32 @@ export function replace(root:TypeArray, v:TypeVariable, r:Type) {
                 root.types[i] = freshParameterNames(r);
             else 
             if (t instanceof TypeArray) 
-                replace(t, v, r);
+                replaceVarWithType(t, v, r);
         }
     }
+}
+
+export function replaceTypeWithVar(root: TypeArray, t: Type, v: TypeVariable) {
+    // TODO: make sure I don't do this on the right side of an arrow. 
+    const i = root.types.indexOf(t);
+    if (i >= 0) {
+        root.types[i] = v;
+        root.typeVars.push(v);
+        root.typeParameterVars.push(v);
+        return;
+    }
+    for (const x of root.types) {
+        if (x instanceof TypeArray) 
+            replaceTypeWithVar(x, t, v);
+    }
+}
+
+// Two types are different, so are being replaced with a new type-variable
+export function resolveConflict(root: TypeArray, t1: Type, t2: Type) {
+    console.log("Resolving conflict between " + t1 + " and " + t2);
+    const v = newTypeVar();
+    replaceTypeWithVar(root, t1, v);
+    replaceTypeWithVar(root, t2, v);
 }
 
 export function unifyTypes(t1:Type, t2:Type, root:TypeArray) 
@@ -281,25 +304,25 @@ export function unifyTypes(t1:Type, t2:Type, root:TypeArray)
     {
         if (t2 instanceof TypeVariable && t1.name === t2.name) 
             return; 
-        replace(root, t1, t2);
+        replaceVarWithType(root, t1, t2);
         if (trace)
             console.log("Replaced: " + t1.name + " with " + t2 + " = " + root);
     }
     // If one is a variable its unifier with the new type. 
     else if (t2 instanceof TypeVariable) 
     {
-        replace(root, t2, t1);
+        replaceVarWithType(root, t2, t1);
     }
     // Constants must match
     else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant)
     {
         if (t1.name !== t2.name)
-            throw new Error("Can't unify constant: " + t1.name + " and " + t2.name);
+            resolveConflict(root, t1, t2);
     }
     // We know by the time we got here, if only one type is a TypeConstant the other is not a variable or a constant
     else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant)
     {
-        throw new Error("Can't unify constant with non-constant: " + t1 + " and " + t2);
+        resolveConflict(root, t1, t2);
     }
     // Check for type list unification. We know that both should be type lists since other possibilities are exhausted. 
     else if (t1 instanceof TypeArray && t2 instanceof TypeArray)
@@ -585,8 +608,13 @@ export function typeVariable(name:string) : TypeVariable {
 }
 
 // Creates a function type, as a special kind of a TypeArray 
-export function functionType(input:Type, output:Type) : TypeArray {
+export function functionType(input: Type, output: Type) : TypeArray {
     return typeArray([input, typeConstant('->'), output]);    
+}    
+
+// Creates a sum type, aka a discriminated union
+export function sumType(types: Type[]) : TypeArray {
+    return typeArray([typeConstant('|'), typeArray(types)]);    
 }    
 
 // Creates an array type, as a special kind of TypeArray
@@ -815,10 +843,20 @@ export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
 // Composes a chain of functions
 export function composeFunctionChain(fxns:TypeArray[]) : TypeArray {
     if (fxns.length == 0)
-        return idFunction();        
-    var t = fxns[0];
-    for (var i=1; i < fxns.length; ++i) 
+        return idFunction();                
+    let t = fxns[0];
+    for (let i=1; i < fxns.length; ++i) 
         t = composeFunctions(t, fxns[i]);
+    return t;
+}
+
+// Composes a chain of functions in reverse. Should give the same result 
+export function composeFunctionChainReverse(fxns:TypeArray[]) : TypeArray {
+    if (fxns.length == 0)
+        return idFunction();                
+    let t = fxns[fxns.length - 1];
+    for (let i=fxns.length-2; i >= 0; --i) 
+        t = composeFunctions(fxns[i], t);
     return t;
 }
 

@@ -285,12 +285,12 @@ function printCatType(s) {
 }
 function testCombinator(name, term, exp) {
     try {
-        console.log("Te33sting Lambda term " + name);
+        console.log("Testing Lambda term " + name);
         var redex = lambda_calculus_1.parseRedex(term);
         console.log("Parsed redex: " + redex);
         testRedex(redex);
         var ys = lambda_calculus_to_cat_1.lambdaToCat(redex);
-        //console.log("Lambda Cat: " + ys.join(' '));
+        console.log("Lambda Cat: " + ys.join(' '));
         var xs = cat_lambda_1.removeVars(ys);
         var cat = xs.join(' ');
         console.log("Pure Cat: " + cat);
@@ -352,5 +352,6 @@ function testCatTermsWithVariance() {
 }
 testCatTermsCommon();
 testCatTermsWithVariance();
+testLambdaTerms();
 process.exit();
 //# sourceMappingURL=test.js.map

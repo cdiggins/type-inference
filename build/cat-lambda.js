@@ -83,13 +83,10 @@ function makeVarsSingleUse(expr, usages, renaming) {
             if (n == 0) {
                 r.push(new cat_parser_1.CatInstruction("pop"));
             }
-            else if (n == 2) {
-                r.push(new cat_parser_1.CatInstruction("dup"));
-            }
-            else if (n > 2) {
-                r.push(new cat_parser_1.CatInstruction("dup" + n));
-            }
-            for (var j = n - 1; j >= 0; --j) {
+            for (var j = 0; j < n; ++j) {
+                if (j < n - 1) {
+                    r.push("dup");
+                }
                 r.push(new cat_parser_1.CatParam(t.name + '#' + j));
             }
             renaming[t.name] = 0;

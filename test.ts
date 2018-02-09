@@ -96,7 +96,6 @@ export const combinatorDefs = {
     // TODO: test the arithmetic identities 
 }
 
-
 const catTests = [
     // Primitive forms 
     ["", "!t0.(t0 -> t0)"],
@@ -315,12 +314,12 @@ function printCatType(s: string) {
 
 function testCombinator(name: string, term: string, exp?: string) {
     try {
-        console.log("Te33sting Lambda term " + name);
+        console.log("Testing Lambda term " + name);
         const redex = parseRedex(term);
         console.log("Parsed redex: " + redex);
         testRedex(redex);
         const ys = lambdaToCat(redex);
-        //console.log("Lambda Cat: " + ys.join(' '));
+        console.log("Lambda Cat: " + ys.join(' '));
         const xs = removeVars(ys);
         const cat = xs.join(' '); 
         console.log("Pure Cat: " + cat);
@@ -386,6 +385,7 @@ function testCatTermsWithVariance() {
 
 testCatTermsCommon();
 testCatTermsWithVariance();
+testLambdaTerms();
 
 //testCombinators();
 //testLambdaTerms();
