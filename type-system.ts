@@ -266,84 +266,9 @@ export function replaceVarWithType(root:TypeArray, v:TypeVariable, r:Type) {
         }
     }
 }
-
-export function replaceTypeWithVar(root: TypeArray, t: Type, v: TypeVariable) {
-    // TODO: make sure I don't do this on the right side of an arrow. 
-    const i = root.types.indexOf(t);
-    if (i >= 0) {
-        root.types[i] = v;
-        root.typeVars.push(v);
-        root.typeParameterVars.push(v);
-        return;
-    }
-    for (const x of root.types) {
-        if (x instanceof TypeArray) 
-            replaceTypeWithVar(x, t, v);
-    }
-}
-
-// Two types are different, so are being replaced with a new type-variable
-export function resolveConflict(root: TypeArray, t1: Type, t2: Type) {
-    console.log("Resolving conflict between " + t1 + " and " + t2);
-    const v = newTypeVar();
-    replaceTypeWithVar(root, t1, v);
-    replaceTypeWithVar(root, t2, v);
-}
-
-export function unifyTypes(t1:Type, t2:Type, root:TypeArray) 
-{            
-    if (!t1 || !t2 || !root) 
-        throw new Error("Argument error");
-    
-    // Avoid unnecessarily executing the algorithhm
-    if (t1 === t2)
-        return;
-        
-    // Variables are least preferred.  
-    if (t1 instanceof TypeVariable) 
-    {
-        if (t2 instanceof TypeVariable && t1.name === t2.name) 
-            return; 
-        replaceVarWithType(root, t1, t2);
-        if (trace)
-            console.log("Replaced: " + t1.name + " with " + t2 + " = " + root);
-    }
-    // If one is a variable its unifier with the new type. 
-    else if (t2 instanceof TypeVariable) 
-    {
-        replaceVarWithType(root, t2, t1);
-    }
-    // Constants must match
-    else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant)
-    {
-        if (t1.name !== t2.name)
-            resolveConflict(root, t1, t2);
-    }
-    // We know by the time we got here, if only one type is a TypeConstant the other is not a variable or a constant
-    else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant)
-    {
-        resolveConflict(root, t1, t2);
-    }
-    // Check for type list unification. We know that both should be type lists since other possibilities are exhausted. 
-    else if (t1 instanceof TypeArray && t2 instanceof TypeArray)
-    {        
-        if (t1.types.length != t2.types.length)
-            throw new Error("Can't unify type arrays with a different length");
-        for (var i=0; i < t1.types.length; ++i) {
-            const a = t1.types[i];
-            const b = t2.types[i];
-            unifyTypes(a, b, root);
-        }
-    }
-    else 
-    {
-        throw new Error("Internal error, unexpected code path: " + t1 + " and " + t2);
-    }
-}
     
 //================================================
 // A classes used to implement unification.
-// TODO: This is too complex I suspect and can be removed. 
 
 // Use this class to unify types that are constrained together.
 export class Unifier
@@ -358,42 +283,43 @@ export class Unifier
     // * Lists are preferred over variables
     // * Given two variables, the first one is chosen. 
     unifyTypes(t1:Type, t2:Type, depth:number=0) : Type {            
-        // if (trace) console.log(`Unification depth ${depth} of ${t1} and ${t2}`);
         if (!t1 || !t2) 
+        {
             throw new Error("Missing type expression");
+        }
         if (t1 === t2)
+        {
             return t1;
-            
-        // Variables are least preferred.  
+        }
         if (t1 instanceof TypeVariable) 
         {
-            var r = this._updateUnifier(t1, t2, depth);
+            let r = this._updateUnifier(t1, t2, depth);
             this._updateAllUnifiers(t1.name, t2);
             return r;
         }
-        // If one is a variable its unifier with the new type. 
         else if (t2 instanceof TypeVariable) 
         {
-            var r = this._updateUnifier(t2, t1, depth);
+            let r = this._updateUnifier(t2, t1, depth);
             this._updateAllUnifiers(t2.name, t1);
             return r;
         }
-        // Constants are best preferred 
         else if (t1 instanceof TypeConstant && t2 instanceof TypeConstant)
         {
             if (t1.name != t2.name)
-                throw new Error("Can't unify: " + t1.name + " and " + t2.name);
+                return sumType([t1, t2]);
             else 
                 return t1;
         }
-        // We know by the time we got here, if only one type is a TypeConstant the other is not a variable or a constant
         else if (t1 instanceof TypeConstant || t2 instanceof TypeConstant)
         {
-            throw new Error("Can't unify: " + t1 + " and " + t2);
+            return sumType([t1, t2]);
         }
-        // Check for type list unification. We know that both should be type lists since other possibilities are exhausted. 
         else if (t1 instanceof TypeArray && t2 instanceof TypeArray)
-        {                
+        {             
+            if (isSumType(t1) || isSumType(t2)) {
+                return sumType([t1, t2]);
+            }
+            
             return this._unifyLists(t1, t2, depth+1);
         }
         throw new Error("Internal error, unexpected code path: " + t1 + " and " + t2);
@@ -612,9 +538,15 @@ export function functionType(input: Type, output: Type) : TypeArray {
     return typeArray([input, typeConstant('->'), output]);    
 }    
 
-// Creates a sum type, aka a discriminated union
+// Creates a sum type. If any of the types in the array are a sumType, it is flattened.  
 export function sumType(types: Type[]) : TypeArray {
-    return typeArray([typeConstant('|'), typeArray(types)]);    
+    let r: Type[] = [];
+    for (let t of types) 
+        if (isSumType(t)) 
+            r.push(...sumTypeOptions(t));
+        else
+            r.push(t);
+    return typeArray([typeConstant('|'), typeArray(r)]);    
 }    
 
 // Creates an array type, as a special kind of TypeArray
@@ -658,6 +590,16 @@ export function isTypeArray(t:Type, name:string) : boolean {
 export function isFunctionType(t:Type) : boolean {        
     return t instanceof TypeArray && t.types.length == 3 && isTypeConstant(t.types[1], '->');
 }
+
+// Returns true iff the type is a TypeArary representing a sum type
+export function isSumType(t:Type) : boolean {        
+    return t instanceof TypeArray && t.types.length == 2 && isTypeConstant(t.types[0], '|');
+}
+
+export function sumTypeOptions(t:Type): Type[] {
+    if (!isSumType(t)) throw new Error("Expected a sum type");
+    return ((t as TypeArray).types[1] as TypeArray).types; 
+} 
 
 // Returns the input types (argument types) of a TypeArray representing a function type
 export function functionInput(t:Type) : Type {        
@@ -775,7 +717,7 @@ export function isValid(type:Type) {
 // - Quotation
 
 // Returns the function type that results by composing two function types
-export function composeFunctions_OLD(f:TypeArray, g:TypeArray) : TypeArray {
+export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
     if (!isFunctionType(f)) throw new Error("Expected a function type for f");
     if (!isFunctionType(g)) throw new Error("Expected a function type for g");
     
@@ -810,34 +752,6 @@ export function composeFunctions_OLD(f:TypeArray, g:TypeArray) : TypeArray {
     }
     r = normalizeVarNames(r) as TypeArray;
     return r;        
-}
-
-// Returns the function type that results by composing two function types
-export function composeFunctions(f:TypeArray, g:TypeArray) : TypeArray {
-    if (!isFunctionType(f)) throw new Error("Expected a function type for f");
-    if (!isFunctionType(g)) throw new Error("Expected a function type for g");
-    
-    f = f.freshVariableNames(0) as TypeArray;
-    g = g.freshVariableNames(1) as TypeArray;
-
-    const outF = functionOutput(f);
-    const inG = functionInput(g);
-
-    // Mutates f and g, by replacing types in "root"
-    // Root has to contain f and g.  
-    const root = new TypeArray([f, g], true);
-    unifyTypes(outF, inG, root);
-
-    const inF = functionInput(f);
-    const outG = functionOutput(g);
-
-    const r = functionType(inF, outG);
-
-    // Recompute parameters.
-    r.computeParameters();
-
-    // Normalize variable names 
-    return normalizeVarNames(r) as TypeArray;
 }
 
 // Composes a chain of functions

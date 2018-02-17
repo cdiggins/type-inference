@@ -249,6 +249,28 @@ export function removeVars(xs: CatExpr[]): CatExpr[] {
             else if (next instanceof CatQuotation && quotationContainsVar(next, t.name)) {
                 r.splice(i, 2, next.prepend(t), new CatInstruction('papply'));
             }
+            // \a T1 T2  => [T1] swap [\a T2] papply compose apply 
+            else {
+                // This keeps the generate algorithms simple
+                var before = [next];
+                var j = i + 2; 
+                while (j < r.length) {
+                    var tmp = r[j];
+                    if (tmp instanceof CatVar && tmp.name === t.name) 
+                        break;
+                    if (tmp instanceof CatQuotation && quotationContainsVar(tmp, t.name))
+                        break;
+                    before.push(tmp);
+                    j++;
+                }
+                var after = r.slice(j);
+                after.splice(0, 0, t);
+
+                r.splice(i, r.length - i, new CatQuotation(before), new CatInstruction('swap'), 
+                    new CatQuotation(after), new CatInstruction("papply"), new CatInstruction("compose"), 
+                    new CatInstruction("apply"));
+            }            
+            /*
             // \a T => [T] dip \a
             else {
                 // Figure out exactly how many terms we can put in the dip. 
@@ -266,6 +288,7 @@ export function removeVars(xs: CatExpr[]): CatExpr[] {
                 }
                 r.splice(i, skip.length + 1, new CatQuotation(skip), new CatInstruction('dip'), t);
             }
+            */
             i = r.length;
         } 
     }

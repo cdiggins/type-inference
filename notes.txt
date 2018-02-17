@@ -176,3 +176,26 @@ than the Lambda calculus. These are the advantages that Henry Baker talks about 
 
 Let's consider a "Lambda Cat". 
 
+//==
+
+            // \a T => [T] dip \a
+
+\a \b T0 T1 @b T2 @a T3 ... TN
+[\b T0 T1 @b T2] dip \a @a T3
+
+NO! 
+
+[\b T0 T1 @b T2] swap [T3 ... TN] papply [apply] dip apply
+
+or 
+
+[\b T0 T1 @b T2] swap [T3 ... TN] papply compose apply
+
+This becomes interesting, because we are moving the variable exactly to where it is being used. 
+
+Otherwise we get all sorts of weirdness where every variable is passed as an argument to every 
+lambda that is invoked. 
+
+
+
+

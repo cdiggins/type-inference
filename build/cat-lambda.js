@@ -229,9 +229,8 @@ function removeVars(xs) {
                 r.splice(i, 2, next.prepend(t), new cat_parser_1.CatInstruction('papply'));
             }
             else {
-                // Figure out exactly how many terms we can put in the dip. 
                 // This keeps the generate algorithms simple
-                var skip = [next];
+                var before = [next];
                 var j = i + 2;
                 while (j < r.length) {
                     var tmp = r[j];
@@ -239,11 +238,32 @@ function removeVars(xs) {
                         break;
                     if (tmp instanceof cat_parser_1.CatQuotation && quotationContainsVar(tmp, t.name))
                         break;
+                    before.push(tmp);
+                    j++;
+                }
+                var after = r.slice(j);
+                after.splice(0, 0, t);
+                r.splice(i, r.length - i, new cat_parser_1.CatQuotation(before), new cat_parser_1.CatInstruction('swap'), new cat_parser_1.CatQuotation(after), new cat_parser_1.CatInstruction("papply"), new cat_parser_1.CatInstruction("compose"), new cat_parser_1.CatInstruction("apply"));
+            }
+            /*
+            // \a T => [T] dip \a
+            else {
+                // Figure out exactly how many terms we can put in the dip.
+                // This keeps the generate algorithms simple
+                var skip = [next];
+                var j = i + 2;
+                while (j < r.length) {
+                    var tmp = r[j];
+                    if (tmp instanceof CatVar && tmp.name === t.name)
+                        break;
+                    if (tmp instanceof CatQuotation && quotationContainsVar(tmp, t.name))
+                        break;
                     skip.push(tmp);
                     j++;
                 }
-                r.splice(i, skip.length + 1, new cat_parser_1.CatQuotation(skip), new cat_parser_1.CatInstruction('dip'), t);
+                r.splice(i, skip.length + 1, new CatQuotation(skip), new CatInstruction('dip'), t);
             }
+            */
             i = r.length;
         }
     }

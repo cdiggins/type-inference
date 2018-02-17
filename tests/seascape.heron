@@ -1,0 +1,188 @@
+module heron.demos.glsl.seascape
+{
+    requires('urn:heron:library:heron-lang:standard:1.0.0:heron.core');
+    requires('urn:heron:library:heron-lang:standard:1.0.0:heron.glsl');
+
+    // Any library using the library, would have to provide 
+    // these values before it could be used 
+    function initialize( iResolution, iGlobalTime)
+    { 
+        // do nothing
+    }
+
+    var NUM_STEPS = 8;
+    var PI	 	= 3.141592;
+    var EPSILON	= 1e-3;
+
+    // T
+    var EPSILON_NRM = (0.1 / iResolution.x);
+
+    // sea
+    var ITER_GEOMETRY = 3;
+    var ITER_FRAGMENT = 5;
+    var SEA_HEIGHT = 0.6;
+    var SEA_CHOPPY = 4.0;
+    var SEA_SPEED = 0.8;
+    var SEA_FREQ = 0.16;
+    var SEA_BASE = vec3(0.1,0.19,0.22);
+    var SEA_WATER_COLOR = vec3(0.8,0.9,0.6);
+    var SEA_TIME = 1.0 + iGlobalTime * SEA_SPEED;
+    var octave_m = mat2(1.6,1.2,-1.2,1.6);
+
+    // math
+    function fromEuler(ang) {
+        var a1 = vec2(sin(ang.x),cos(ang.x));
+        var a2 = vec2(sin(ang.y),cos(ang.y));
+        var a3 = vec2(sin(ang.z),cos(ang.z));
+        return mat3(
+            vec3(a1.y*a3.y+a1.x*a2.x*a3.x,a1.y*a2.x*a3.x+a3.y*a1.x,-a2.y*a3.x),
+            vec3(-a2.y*a1.x,a1.y*a2.y,a2.x),
+            vec3(a3.y*a1.x*a2.x+a1.y*a3.x,a1.x*a3.x-a1.y*a3.y*a2.x,a2.y*a3.y));
+    }
+
+    function hash( p ) {
+        var h = dot(p,vec2(127.1,311.7));	
+        return fract(sin(h)*43758.5453123);
+    }
+
+    function noise( p ) {
+        var i = floor( p );
+        var f = fract( p );	
+        var u = f*f*(3.0-2.0*f);
+        return -1.0+2.0*mix( mix( hash( i + vec2(0.0,0.0) ), 
+                        hash( i + vec2(1.0,0.0) ), u.x),
+                    mix( hash( i + vec2(0.0,1.0) ), 
+                        hash( i + vec2(1.0,1.0) ), u.x), u.y);
+    }
+
+    // lighting
+    function diffuse(n, l, p) {
+        return pow(dot(n,l) * 0.4 + 0.6,p);
+    }
+
+    function specular(n, l, e, s) {    
+        var nrm = (s + 8.0) / (PI * 8.0);
+        return pow(max(dot(reflect(e,n),l),0.0),s) * nrm;
+    }
+
+    // sky
+    function getSkyColor( e ) {
+        var y = max(e.y,0.0);
+        return vec3(pow(1.0-y,2.0), 1.0-y, 0.6+(1.0-y)*0.4);
+    }
+
+    // sea
+    function sea_octave( uv, choppy) {
+        uv += noise(uv);        
+        var wv = 1.0-abs(sin(uv));
+        var swv = abs(cos(uv));    
+        wv = mix(wv,swv,wv);
+        return pow(1.0-pow(wv.x * wv.y,0.65), choppy);
+    }
+
+    function map(p) {
+        var freq = SEA_FREQ;
+        var amp = SEA_HEIGHT;
+        var choppy = SEA_CHOPPY;
+        var uv = p.xz; uv.x *= 0.75;
+        var d = 0.0;
+        var h = 0.0;    
+        for (var i in 0 .. ITER_GEOMETRY) {        
+            d = sea_octave((uv+SEA_TIME)*freq,choppy);
+            d += sea_octave((uv-SEA_TIME)*freq,choppy);
+            h += d * amp;        
+            uv *= octave_m; freq *= 1.9; amp *= 0.22;
+            choppy = mix(choppy,1.0,0.2);
+        }
+        return p.y - h;
+    }
+
+    function map_detailed(p) {
+        var freq = SEA_FREQ;
+        var amp = SEA_HEIGHT;
+        var choppy = SEA_CHOPPY;
+        var uv = p.xz; uv.x *= 0.75;        
+        var d = 0.0;
+        var h = 0.0;    
+        for (var i in 0 .. ITER_FRAGMENT) {        
+            d = sea_octave((uv+SEA_TIME)*freq,choppy);
+            d += sea_octave((uv-SEA_TIME)*freq,choppy);
+            h += d * amp;        
+            uv *= octave_m; freq *= 1.9; amp *= 0.22;
+            choppy = mix(choppy,1.0,0.2);
+        }
+        return p.y - h;
+    }
+
+    function getSeaColor(p, n, l, eye, dist) {  
+        var fresnel = clamp(1.0 - dot(n,-eye), 0.0, 1.0);
+        fresnel = pow(fresnel,3.0) * 0.65;            
+        var reflected = getSkyColor(reflect(eye,n));    
+        var refracted = SEA_BASE + diffuse(n,l,80.0) * SEA_WATER_COLOR * 0.12; 
+        var color = mix(refracted,reflected,fresnel);
+        var atten = max(1.0 - dot(dist,dist) * 0.001, 0.0);
+        color += SEA_WATER_COLOR * (p.y - SEA_HEIGHT) * 0.18 * atten;        
+        color += vec3(specular(n,l,eye,60.0));        
+        return color;
+    }
+
+    // tracing
+    function getNormal(p, eps) {
+        var n = vec3();
+        n.y = map_detailed(p);    
+        n.x = map_detailed(vec3(p.x+eps,p.y,p.z)) - n.y;
+        n.z = map_detailed(vec3(p.x,p.y,p.z+eps)) - n.y;
+        n.y = eps;
+        return normalize(n);
+    }
+
+    function heightMapTracing(ori, dir) {  
+        var tm = 0.0;
+        var tx = 1000.0;    
+        var hx = map(ori + dir * tx);
+        if(hx > 0.0) return p;   
+        var hm = map(ori + dir * tm);    
+        var tmid = 0.0;
+        for (var i in 0 .. NUM_STEPS) {
+            tmid = mix(tm,tx, hm/(hm-hx));                   
+            p = ori + dir * tmid;                   
+            var hmid = map(p);
+            if (hmid < 0.0) {
+                tx = tmid;
+                hx = hmid;
+            } else {
+                tm = tmid;
+                hm = hmid;
+            }
+        }
+        return p;
+    }
+
+    function mainImage( fragCoord ) {        
+        var uv = fragCoord.xy / iResolution.xy;
+        uv = uv * 2.0 - 1.0;
+        uv.x *= iResolution.x / iResolution.y;    
+        var time = iGlobalTime * 0.3 + iMouse.x*0.01;
+            
+        // ray
+        var ang = vec3(sin(time*3.0)*0.1,sin(time)*0.2+0.3,time);    
+        var ori = vec3(0.0,3.5,time*5.0);
+        var dir = normalize(vec3(uv.xy,-2.0)); dir.z += length(uv) * 0.15;
+        dir = normalize(dir) * fromEuler(ang);
+        
+        // tracing
+        var p = heightMapTracing(ori,dir);
+        var dist = p - ori;
+        var n = getNormal(p, dot(dist,dist) * EPSILON_NRM);
+        var light = normalize(vec3(0.0,1.0,0.8)); 
+                
+        // color
+        var color = mix(
+            getSkyColor(dir),
+            getSeaColor(p,n,light,dir,dist),
+            pow(smoothstep(0.0,-0.05,dir.y),0.3));
+            
+        // post
+        return vec4(pow(color,vec3(0.75)), 1.0);
+    }
+}
