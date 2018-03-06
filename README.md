@@ -2,7 +2,7 @@
 
 This is a TypeScript implementation of a type-inference alogithm intended for use in different applications. 
 
-Type inference is not yet proven to support rank-N polymorphism in all cases, but it does infer polymorphic types in some cases where other languages using HM inference seem to fail. 
+The type inference algorithm is not yet proven to support rank-N polymorphism in all cases, but it does infer polymorphic types in some cases where other languages using HM inference seem to fail. 
 
 # Source Code and Dependencies 
 
