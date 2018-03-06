@@ -1,36 +1,12 @@
-# Type Inference for Rank-N Polymorphic Types
+# Type Inference for Polymorphic Types
 
-This is a practical implementation in TypeScript of a type inference algorithm that can infer non-recursive rank-n polymorphic types without user supplied type annotations. This is more powerful than type reconstruction for the  Hindley-Milner type system (aka Hindley Milner Damas Type inference or Algorithm W) which only allows universal quantifiers to occur at the top level. 
+This is a TypeScript implementation of a type-inference alogithm intended for use in different applications. 
+
+Type inference is not yet proven to support rank-N polymorphism in all cases, but it does infer polymorphic types in some cases where other languages using HM inference seem to fail. 
 
 # Source Code and Dependencies 
 
 All of the source code is constained in a single TypeScript file [type_inference.ts](https://github.com/cdiggins/type-inference/blob/master/type_inference.ts). The tests are contained in the file [test.ts](https://github.com/cdiggins/type-inference/blob/master/test.ts). The tests have a dependency on the [Myna parser](https://github.com/cdiggins/myna-parser).
-
-# Motivation 
-
-Most programming languages with support for parametric (aka generic) types don't allow programmers to use generic types as type parameters. Instead generic types have to be converted to non-polymorphic types by supplying non-polymorphic types for each type parameter before they can be used. Described another way these languages only support rank-1 polymorphism, also called prenex polymorphism.
-
-Strongly typed languages with type inference usually can only infer types for certain expressions making them hard to learn for new users because they quickly find themselves in situiations where they have to understand the intricacies and limitations of the type system, and how to write complex types in situations that would be easy to express in a dynamic language (e.g. Python and JavaScript).
-
-I believe that full type inference in a programming language with higher rank type polymorphism can give programmers the convenience and smooth learning curve of a dynamic programming language with the safety, security, and efficiency of a strongly typed programming language. 
-
-## Limitations 
-
-The type inference algorithm implemented is restricted in that it cannot properly infer recursive types, therefore it cannot be used to infer all types in an impredicative (first class) polymorphic system. Any recursive type is considered illegal. 
-
-## Typed Lambda Calculus
-
-The following are some examples of types inferred for common terms in the lambda calculus using the class `ScopedTypeInferenceEngine`. 
-
-```
-    i = \x.x                : !a.(a -> a)
-    k = \x.\y.x             : !a.(a -> !b.(b -> a))
-    s = \x.\y.\z.x z (y z)  : !a!b!c.((a -> (b -> c)) -> ((a -> b) -> (a -> c)))
-    b = \x.\y.\z.x (y z)    : !a!b.((a -> b) -> !c.((c -> a) -> (c -> b)))
-    c = \x.\y.\z.x y z      : !a!b!c.((a -> (b -> c)) -> (a -> (b -> c)))
-    w = \x.\y.x y y         : !a!b.((a -> (a -> b)) -> (a -> b))
-    m = \x.x x              : !a.((((rec 0) -> a) -> a) -> a)
-```
 
 # Implementation Overview
 
