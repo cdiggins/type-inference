@@ -6,6 +6,12 @@
 // For more information see http://www.github.com/cdiggins/myna-parser
 export namespace Myna
 {   
+
+    // A parser error class
+    export class ParserError extends Error {
+        type = 'ParserError'
+    }
+
     //====================================================================================
     // Internal variables used by the Myna library
 
@@ -275,31 +281,6 @@ export namespace Myna
             return r;
         }
 
-        // Returns a copy of the rule that will create a node in the parse tree.
-        // This property is the only way to create rules that generate nodes in a parse tree. 
-        // TODO: this might be better in a Rule class? 
-        get ast() : Rule {
-            var r = this.copy;
-            r._createAstNode = true;
-            var parser = r.parser;
-            r.parser = (p : ParseState) => {
-                var originalIndex = p.index; 
-                var originalNodes = p.nodes;
-                p.nodes = [];
-                if (!parser(p)) {
-                    p.nodes = originalNodes;
-                    p.index = originalIndex;
-                    return false;
-                }                
-                let node = new AstNode(r, p.input, originalIndex, p.index);
-                node.children = p.nodes;
-                p.nodes = originalNodes;
-                p.nodes.push(node);
-                return true;
-            }
-            return r;
-        }
-
         // Returns true if any of the child rules are "ast rules" meaning they create nodes in the parse tree.
         get hasAstChildRule() : boolean {
             return this.rules.filter(r => r.createsAstNode).length > 0;
@@ -365,6 +346,7 @@ export namespace Myna
         get all() : Rule { return this.then(all); }
         get end() : Rule { return this.then(end); }
         get assert() : Rule { return assert(this); }
+        get ast() : Rule { return new AstRule(this); }
 
         then(r:RuleType) : Rule { return seq(this, r); }
         thenAt(r:RuleType) : Rule { return this.then(at(r)); }
@@ -372,10 +354,10 @@ export namespace Myna
         or(r:RuleType) : Rule { return choice(this, r); } 
         until(r:RuleType) : Rule { return repeatWhileNot(this, r); }
         untilPast(r:RuleType) : Rule { return repeatUntilPast(this, r); }        
-        repeat(count:number) { return repeat(this, count); }
-        quantified(min:number, max:number) { return quantified(this, min, max); }
-        delimited(delimiter:RuleType) { return delimited(this, delimiter); }        
-        unless(r:RuleType) { return unless(this, r); }
+        repeat(count:number) : Rule { return repeat(this, count); }
+        quantified(min:number, max:number) : Rule { return quantified(this, min, max); }
+        delimited(delimiter:RuleType) : Rule { return delimited(this, delimiter); }        
+        unless(r:RuleType) : Rule { return unless(this, r); }
     }
 
     //===============================================================
@@ -385,6 +367,34 @@ export namespace Myna
     // If you fork this code, think twice before adding new classes here. Maybe you can implement your new Rule
     // in terms of functions or other low-level rules. Then you can be happy knowing that the same code is being 
     // re-used and tested all the time.  
+
+    // Creates a node in the AST tree 
+    export class AstRule extends Rule 
+    {
+        type = 'ast';
+        className = "AstRule";
+    
+        constructor(public r:Rule) { 
+            super([r]);            
+            this._createAstNode = true;
+            this.parser = (p : ParseState) => {
+                var originalIndex = p.index; 
+                var originalNodes = p.nodes;
+                p.nodes = [];
+                if (!r.parser(p)) {
+                    p.nodes = originalNodes;
+                    p.index = originalIndex;
+                    return false;
+                }                
+                let node = new AstNode(this, p.input, originalIndex, p.index);
+                node.children = p.nodes;
+                p.nodes = originalNodes;
+                p.nodes.push(node);
+                return true;
+            }
+            this.lexer = r.lexer;
+        }
+    }
 
     // Matches a series of rules in order. Succeeds only if all sub-rules succeed. 
     export class Sequence extends Rule 
@@ -632,7 +642,9 @@ export namespace Myna
             for (var i=0; i < length; ++i)
                 vals.push(text.charCodeAt(i));
             this.lexer = (p : ParseState) => {
-                let index = p.index; 
+                let index = p.index;
+                if (index + vals.length > p.input.length)
+                    return false;
                 // TODO: consider pulling the sub-string out of the text.        
                 for (let val of vals)
                     if (p.input.charCodeAt(index++) !== val) 
@@ -660,10 +672,13 @@ export namespace Myna
             for (var i=0; i < length; ++i)
                 vals.push(text[i]);
             this.lexer = (p : ParseState) => {
-                let index = p.index; 
-                for (let val of vals)
+                let index = p.index;
+                if (index + vals.length > p.input.length)
+                    return false;
+                for (let val of vals) {
                     if (p.input[index++].toLowerCase() !== val) 
                         return false;
+                }
                 p.index = index;
                 return true;
             }
@@ -936,7 +951,7 @@ export namespace Myna
 
     // Throw a Error if reached 
     export function err(message) {  return action(p => { 
-        var e = new Error(message + '\n' + p.location.toString()); 
+        var e = new ParserError(message + '\n' + p.location.toString()); 
         throw e;
     }).setType("err");  }
 
@@ -1048,11 +1063,13 @@ export namespace Myna
     }
 
     // Returns the root node of the abstract syntax tree created 
-    // by parsing the rule. 
+    // by parsing the rule.  
     export function parse(r : Rule, s : string) : AstNode
     {
-        var p = new ParseState(s, 0, []);        
-        if (!r.ast.parser(p)) 
+        var p = new ParseState(s, 0, []); 
+        if (!(r instanceof AstRule))
+            r = r.ast;
+        if (!r.parser(p)) 
             return null;
         return p && p.nodes ? p.nodes[0] : null;
     }

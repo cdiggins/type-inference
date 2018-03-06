@@ -136,6 +136,9 @@ function RuleTestInputs(myna)
         [m.char("a").repeat(3), ["aaa"], ["aa", "aaaa"]],            
         [m.char("a").quantified(2,3), ["aa", "aaa"], ["a", "aaaa"]],            
         [m.char("a").delimited("b"), ["a", "aba", "ababa"], ["aaba","abaa","bab","b"]],            
+        [m.textAnyCase("AbC"), ["AbC", "abc", "ABC", "aBc"], ["AbCd", "abcd", "Ab", "ab"]],
+        [m.textAnyCase("abc"), ["AbC", "abc", "ABC", "aBc"], ["AbCd", "abcd", "Ab", "ab"]],
+        [m.textAnyCase("ABC"), ["AbC", "abc", "ABC", "aBc"], ["AbCd", "abcd", "Ab", "ab"]],
         
         // CSV grammar 
         [cg.textdata, ['a', '?', ' ', ';', '\t', '9', '.'], [',', '\n', '\r', '"']],
