@@ -195,7 +195,3 @@ This becomes interesting, because we are moving the variable exactly to where it
 
 Otherwise we get all sorts of weirdness where every variable is passed as an argument to every 
 lambda that is invoked. 
-
-
-
-
