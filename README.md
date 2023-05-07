@@ -1,8 +1,57 @@
 # Type Inference for Polymorphic Types
 
-This is a TypeScript implementation of a type-inference alogithm intended for use in different applications. 
+This is a TypeScript implementation of a type-inference algorithm for polymorphic types. 
+It is used in the:
+* [Heron programming language](https://github.com/cdiggins/heron-language)
+* [Cat programming language](https://github.com/cdiggins/cat-language)
 
-The type inference algorithm is not yet proven to support rank-N polymorphism in all cases, but it does infer polymorphic types in some cases where other languages using HM inference seem to fail. 
+![image](https://user-images.githubusercontent.com/1759994/236684768-3c352cc6-4abd-4add-a35d-247caa978e62.png)
+
+The type inference algorithm is not proven to support rank-N polymorphism in all cases (this is an open question), 
+but it does infer polymorphic types in some cases 
+where other languages using HM inference are known to fail. 
+
+# Citation
+
+```
+@software{cdiggins/type-inference,
+  author = {Diggins, Christopher},
+  title = {Type Inference for Polymorphic Types},
+  url = {https://github.com/cdiggins/type-inference},
+  year = {2017},
+}
+```
+
+## Motivation
+
+Types for higher-order functions using generics can become more complex than the implementations of the functions. 
+
+![image](https://user-images.githubusercontent.com/1759994/236685241-81ccda98-1484-41ed-b7fe-bd1174a2b791.png)
+
+# History
+
+This algorithm is based on work done on developing a type system for functional stack-based languages. See: 
+
+```@article{article,
+author = {Diggins, Christopher},
+year = {2008},
+month = {05},
+pages = {},
+title = {Typing Functional Stack-Based Languages},
+volume = {33}
+}
+```
+
+```
+@article{article,
+author = {Diggins, Christopher},
+year = {2008},
+month = {01},
+pages = {},
+title = {Simple Type Inference for Higher-Order Stack-Oriented Languages}
+}```
+
+A version of this algorithm was used to derive types for the functional data flow language [Max Creation Graph (MCG)](https://help.autodesk.com/view/3DSMAX/2017/ENU/?guid=GUID-608EC963-75ED-4F63-96B7-D8AE57E75959) first introduced in Autodesk 3ds Max 2016. 
 
 # Source Code and Dependencies 
 
@@ -181,13 +230,14 @@ Given a type array containing type variables assumed to be uniqely named in pote
 
 # For More Information
 
+* https://www.researchgate.net/publication/228985001_Typing_Functional_Stack-Based_Languages
+* https://prl.khoury.northeastern.edu/blog/static/stack-languages-annotated-bib.pdf
 * https://en.wikipedia.org/wiki/Parametric_polymorphism. 
 * https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system
 * https://en.wikipedia.org/wiki/Lambda_calculus
 * https://en.wikipedia.org/wiki/Typed_lambda_calculus
 * https://en.wikipedia.org/wiki/Unification_(computer_science) 
 * https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
-
 * https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 * http://www.angelfire.com/tx4/cus/combinator/birds.html
 * https://github.com/leonidas/codeblog/blob/master/2012/2012-02-17-concatenative-haskell.md
