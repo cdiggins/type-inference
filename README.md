@@ -5,13 +5,12 @@ It is used in the:
 * [Heron programming language](https://github.com/cdiggins/heron-language)
 * [Cat programming language](https://github.com/cdiggins/cat-language)
 
-![image](https://user-images.githubusercontent.com/1759994/236684768-3c352cc6-4abd-4add-a35d-247caa978e62.png)
-
 The type inference algorithm is not proven to support rank-N polymorphism in all cases (this is an open question), 
-but it does infer polymorphic types in some cases 
-where other languages using HM inference are known to fail. 
+but it does infer polymorphic types in some cases where other languages using HM inference are known to fail. 
 
 # Citation
+
+To formally cite this project please use: 
 
 ```
 @software{cdiggins/type-inference,
@@ -22,36 +21,52 @@ where other languages using HM inference are known to fail.
 }
 ```
 
-## Motivation
+# Motivation
 
 Types for higher-order functions using generics can become more complex than the implementations of the functions. 
+If the types of generic (polymorphic) functions can be entirely inferred, then it can make the language
+easier to learn, read, and teach. 
 
-![image](https://user-images.githubusercontent.com/1759994/236685241-81ccda98-1484-41ed-b7fe-bd1174a2b791.png)
+The following screen shot demonstrates the inferred types for a number of higher-order functions 
+for the [Heron standard library](https://github.com/cdiggins/heron-language/blob/master/input/array.heron). 
+
+![image](https://user-images.githubusercontent.com/1759994/236684768-3c352cc6-4abd-4add-a35d-247caa978e62.png)
+
+In data-flow visual languages it is not practical to expect a user to provide types, so type inference 
+is a critical feature to achieve good performance. In 3ds Max the 
+[Max Creation Graph - MCG](https://help.autodesk.com/view/3DSMAX/2017/ENU/?guid=GUID-608EC963-75ED-4F63-96B7-D8AE57E75959) feature 
+is a visual data-flow programming language primarily used for creating procedural geometry and modifiers. 
+MCG supports higher-order functions to represent control-flow, and performs type-inference on the fly. 
+
+![image](https://user-images.githubusercontent.com/1759994/236686865-541cd729-574a-4dad-91a2-2a34d41a2347.png)
+
+Follow [this link for more information on higher order functions in MCG](https://help.autodesk.com/view/MAXDEV/2022/ENU/?guid=MAXDEV_MCG_arrays_and_functions_apply_and_bind_html).
 
 # History
 
-This algorithm is based on work done on developing a type system for functional stack-based languages. See: 
+This algorithm came from earlier work done on developing a type system for functional stack-based languages which
+was documented in two technical reports. 
 
-```@article{article,
-author = {Diggins, Christopher},
-year = {2008},
-month = {05},
-pages = {},
-title = {Typing Functional Stack-Based Languages},
-volume = {33}
+```
+@article{article,
+  author = {Diggins, Christopher},
+  year = {2008},
+  month = {05},
+  pages = {},
+  title = {Typing Functional Stack-Based Languages},
+  volume = {33}
 }
 ```
 
 ```
 @article{article,
-author = {Diggins, Christopher},
-year = {2008},
-month = {01},
-pages = {},
-title = {Simple Type Inference for Higher-Order Stack-Oriented Languages}
-}```
-
-A version of this algorithm was used to derive types for the functional data flow language [Max Creation Graph (MCG)](https://help.autodesk.com/view/3DSMAX/2017/ENU/?guid=GUID-608EC963-75ED-4F63-96B7-D8AE57E75959) first introduced in Autodesk 3ds Max 2016. 
+  author = {Diggins, Christopher},
+  year = {2008},
+  month = {01},
+  pages = {},
+  title = {Simple Type Inference for Higher-Order Stack-Oriented Languages}
+}
+```
 
 # Source Code and Dependencies 
 
