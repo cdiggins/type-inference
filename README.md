@@ -180,13 +180,13 @@ Now consider the type inferred by the algorithm for the term `quote dup`. Notice
 quote dup : !t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) (!t3.(t3 -> (t0 t3)) t1)))
 ```
 
-When we infer the type for the term `quote dup apply` we get the following: 
+When we infer the type for the term `quote dup apply` we might hope to recover the type of `dup`, since applying one of the two independent quotations should undo the quotation. In practice the current algorithm produces the following: 
 
 ```
-quote dup apply : !t0!t1.((t0 t1) -> (t0 (t0 (t1)))
+quote dup apply : !t0!t1.((t0 t1) -> (t0 ((rec 1) t1)))
 ```
 
-Notice this is exactly the same type as for `dup` which is what we expect intuitively.  
+Applying the copied quotation reintroduces a self-referential constraint, which the algorithm reports with the `(rec 1)` marker. Any type containing a `Rec` form is considered invalid (see [Recursive Types](#recursive-types)), so although the higher-rank type of `quote dup` is inferred correctly, this particular follow-on term is a known limitation rather than the clean recovery of `dup` that one might expect intuitively.  
 
 ## Compared to Haskell 
 
