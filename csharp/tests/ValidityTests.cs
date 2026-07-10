@@ -29,10 +29,10 @@ namespace TypeInference.Tests
         public void Well_typed_terms_are_valid(string term) =>
             Assert.That(Valid(term), Is.True);
 
-        [TestCase("dup apply")]          // genuine self-application -> (rec 1)
-        [TestCase("quote dup apply")]    // spurious rec under the default right-fold
-        public void Recursive_terms_are_invalid(string term) =>
-            Assert.That(Valid(term), Is.False);
+        [TestCase("dup apply")]          // genuine self-application
+        [TestCase("quote dup apply")]    // recursive under the default right-fold
+        public void Recursive_terms_are_valid_mu_types(string term) =>
+            Assert.That(Valid(term), Is.True); // equirecursive: μ-types are well-formed
 
         [Test]
         public void A_bare_rec_marker_is_invalid()

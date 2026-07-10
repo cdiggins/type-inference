@@ -153,7 +153,7 @@ the placement idea, not the surrounding engineering.
 dotnet test
 ```
 
-290 tests. No test can hang or crash the runner: every potentially
+284 tests. No test can hang or crash the runner: every potentially
 dangerous computation runs inside a recursion/step **Guard** on a threaded **Sandbox**
 with a wall-clock timeout, so infinite recursion, stack overflow, and infinite loops all
 become fast, catchable results.
@@ -177,7 +177,6 @@ tests/
   RootCauseTests.cs         why `quote dup apply` was wrong; the left-fold fix
   SoundnessTests.cs         constant clashes are now rejected (sum types removed)
   RecursionTests.cs         no occurs check; (rec N) markers; the issue-#1 throw
-  RecursiveTypeTests.cs     could (rec N) be a valid μ-type? (no, with this encoding)
   ReplaceBugTests.cs        the two entangled substitution/clone bugs
   AlgebraicLawTests.cs      equivalences, identities, [X] apply == X, associativity
   ComputeParametersTests.cs the novel quantifier-placement core, on hand-built types
@@ -201,14 +200,13 @@ Three behaviors intentionally differ from the original `type-system.ts`, by requ
   unchanged.
 * **Left-fold available** via `Cat.UseLeftFold` (default off) — types in evaluation order,
   which fixes `quote dup apply` (see `RootCauseTests`).
-* **Equi-recursive μ-types** — recursion as a first-class type the unifier can produce (occurs
-  check ⇒ `μ`) and consume (unfold + a memo set). `src/RecursiveTypes.cs` is the self-contained
-  coinductive core (with the full algorithm, decidability argument, and references);
-  `src/Equirecursive.cs` wires it into the engine behind `Cat.Equirecursive` (default off), so
-  end-to-end inference emits `μ` at reconstruction and consumes it in later compositions instead
-  of the positional `(rec N)`. With the flag on, `dup apply` infers the valid recursive type
-  `!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)` instead of the invalid `(rec 1)` — see
-  `EquirecursiveIntegrationTests`.
+* **Equi-recursive μ-types (now the default)** — the positional `(rec N)` marker is retired.
+  Recursion is a first-class type the unifier can produce (occurs situation ⇒ `μ`) and consume
+  (unfold + a memo set). `src/RecursiveTypes.cs` is the self-contained coinductive core (with the
+  full algorithm, decidability argument, and references); `src/Equirecursive.cs` wires it into the
+  engine, so end-to-end inference emits `μ` at reconstruction and consumes it in later compositions.
+  `dup apply` infers the valid recursive type `!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)` instead of
+  the old invalid `(rec 1)` — see `EquirecursiveIntegrationTests`.
 
 ## Faithfulness
 
@@ -224,5 +222,4 @@ the real algorithm.
 * `Unifier.UseFixedReplaceDefault` — swap the buggy `_replaceVarWithType` for the corrected
   one (used by `ReplaceBugTests` to show the bug is load-bearing).
 * `Cat.UseLeftFold` — fold composition in evaluation order (fixes `quote dup apply`).
-* `Cat.Equirecursive` — produce/consume real μ-types instead of the positional `(rec N)`.
 * `Cat.ResetVocabulary()` — rebuild the vocabulary under a changed configuration.

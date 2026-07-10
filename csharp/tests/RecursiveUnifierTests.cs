@@ -6,8 +6,8 @@ namespace TypeInference.Tests
     /// <summary>
     /// Tests for the equi-recursive (μ-type) unifier — the deliberate divergence that makes
     /// recursion a first-class type the unifier can both PRODUCE and CONSUME (see the header of
-    /// src/RecursiveTypes.cs for the fold/unfold + memo-set algorithm and rationale). Contrast
-    /// with RecursiveTypeTests, which shows the original positional `(rec N)` cannot do this.
+    /// src/RecursiveTypes.cs for the fold/unfold + memo-set algorithm and rationale). This is the
+    /// standalone core; EquirecursiveIntegrationTests exercises it wired into the engine.
     /// Everything is sandboxed; the algorithm terminates by construction (regular trees).
     /// </summary>
     [TestFixture]
@@ -143,9 +143,9 @@ namespace TypeInference.Tests
         [Test]
         public void This_is_the_correct_answer_where_the_old_engine_botched_it()
         {
-            // RecursiveTypeTests: the original unifier, given a rec marker vs a concrete type,
-            // clashed or mangled it. Here the analogous unification (a variable that occurs in a
-            // Num-pair) yields a coherent μ-type and succeeds.
+            // The original unifier, given a positional rec marker vs a concrete type, clashed or
+            // mangled it. Here the analogous unification (a variable that occurs in a Num-pair)
+            // yields a coherent μ-type and succeeds.
             var run = Sandbox.Run(() =>
             {
                 var (ok, s) = RecursiveUnifier.Unify(Var("a"), App(Con("Num"), Var("a")));

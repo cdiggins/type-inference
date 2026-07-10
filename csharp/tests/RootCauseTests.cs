@@ -48,10 +48,12 @@ namespace TypeInference.Tests
         }
 
         [Test]
-        public void Right_fold_default_introduces_the_spurious_rec()
+        public void Right_fold_default_introduces_a_recursive_type()
         {
+            // Right-fold types the suffix `dup apply` (= λx.x x) in isolation, which forces
+            // recursion; that now surfaces as a μ-type (previously the invalid (rec 1)).
             Assert.That(Eval("quote dup apply", leftFold: false),
-                Is.EqualTo("!t0!t1.((t0 t1) -> (t0 ((rec 1) t1)))"));
+                Is.EqualTo("!t0!t1.((t0 t1) -> μr0.(t0 (μr1.((r1 t1) -> r0) t1)))"));
         }
 
         [Test]
@@ -87,9 +89,9 @@ namespace TypeInference.Tests
         public void dup_apply_needs_real_recursion_under_both_folds()
         {
             // The fix does not wrongly "fix" genuine self-application: `dup apply` = λx.x x
-            // is legitimately recursive, so it stays (rec ...) either way.
-            Assert.That(Eval("dup apply", leftFold: false), Does.Contain("rec"));
-            Assert.That(Eval("dup apply", leftFold: true), Does.Contain("rec"));
+            // is legitimately recursive, so it stays a μ-type either way.
+            Assert.That(Eval("dup apply", leftFold: false), Does.Contain("μ"));
+            Assert.That(Eval("dup apply", leftFold: true), Does.Contain("μ"));
         }
 
         // The 60 canonical catTests terms — none of them should change under the fix.

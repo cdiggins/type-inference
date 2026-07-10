@@ -63,7 +63,9 @@ namespace TypeInference.Tests
             yield return C("quote dup", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) (!t3.(t3 -> (t0 t3)) t1)))");
             yield return C("quote swap", "!t0!t1!t2.((t0 (t1 t2)) -> (t1 (!t3.(t3 -> (t0 t3)) t2)))");
             yield return C("quote pop", "!t1.(!t0.(t0 t1) -> t1)");
-            yield return C("dup apply", "!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)");
+            // NOTE: recursion now infers an explicit μ-type (the (rec N) marker is retired), so this
+            // one term diverges from the original node output — see EquirecursiveIntegrationTests.
+            yield return C("dup apply", "!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)");
             yield return C("dup compose", "!t0!t1.(((t0 -> t0) t1) -> ((t0 -> t0) t1))");
             yield return C("dup quote", "!t0!t1.((t0 t1) -> (!t2.(t2 -> (t0 t2)) (t0 t1)))");
             yield return C("dup dup", "!t0!t1.((t0 t1) -> (t0 (t0 (t0 t1))))");

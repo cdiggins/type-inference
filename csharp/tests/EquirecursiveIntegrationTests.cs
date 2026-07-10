@@ -3,63 +3,40 @@ using NUnit.Framework;
 namespace TypeInference.Tests
 {
     /// <summary>
-    /// End-to-end tests of the equirecursive integration (Equirecursive.cs): with
-    /// `Cat.Equirecursive` on, inference PRODUCES real μ-types at reconstruction and CONSUMES
-    /// them in later compositions, replacing the positional `(rec N)` marker. With it off
-    /// (the default) behavior is byte-identical to the faithful port.
+    /// End-to-end tests of equirecursive inference, which is now the engine's ONLY behavior:
+    /// recursion is produced as an explicit μ-type at reconstruction and consumed by fold/unfold
+    /// in later compositions. The positional `(rec N)` marker has been retired (see Equirecursive.cs).
     /// </summary>
-    [TestFixture, NonParallelizable]
+    [TestFixture]
     public class EquirecursiveIntegrationTests
     {
-        private static (string norm, bool valid, bool recursive) Infer(string term, bool equi)
+        private static (string norm, bool valid, bool recursive) Infer(string term)
         {
-            var saved = Cat.Equirecursive;
-            try
+            var r = Sandbox.Run(() =>
             {
-                Cat.Equirecursive = equi;
-                Cat.ResetVocabulary();
-                var r = Sandbox.Run(() =>
-                {
-                    var t = Cat.Infer(term);
-                    return (TypeOps.NormalizeVarNames(t).ToString(), TypeOps.IsValid(t), Equi.IsRecursive(t));
-                });
-                Assert.That(r.IsOk, Is.True, $"'{term}' (equi={equi}): {r}");
-                return r.Value;
-            }
-            finally { Cat.Equirecursive = saved; Cat.ResetVocabulary(); }
+                var t = Cat.Infer(term);
+                return (TypeOps.NormalizeVarNames(t).ToString(), TypeOps.IsValid(t), Equi.IsRecursive(t));
+            });
+            Assert.That(r.IsOk, Is.True, $"'{term}': {r}");
+            return r.Value;
         }
 
         [Test]
-        public void Off_by_default()
-        {
-            Assert.That(Cat.Equirecursive, Is.False);
-            Assert.That(Unifier.EquirecursiveDefault, Is.False);
-        }
-
-        [Test]
-        public void Default_mode_still_emits_the_positional_rec_marker()
-        {
-            var (norm, valid, _) = Infer("dup apply", equi: false);
-            Assert.That(norm, Is.EqualTo("!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)"));
-            Assert.That(valid, Is.False, "the (rec N) form is invalid");
-        }
-
-        [Test]
-        public void Self_application_becomes_a_valid_mu_type()
+        public void Self_application_infers_a_valid_mu_type()
         {
             // dup apply = λx.x x. The recursive type is μr0.((r0 t0) -> t1): x is a function that
             // takes (a stack with x on top of t0) and returns t1.
-            var (norm, valid, recursive) = Infer("dup apply", equi: true);
+            var (norm, valid, recursive) = Infer("dup apply");
             Assert.That(norm, Is.EqualTo("!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)"));
             Assert.That(valid, Is.True, "the μ-type is well-formed (no rec constant, params on input)");
-            Assert.That(recursive, Is.True, "it genuinely contains a μ binder");
+            Assert.That(recursive, Is.True);
             Assert.That(norm, Does.Contain("μ").And.Not.Contain("rec "));
         }
 
         [Test]
-        public void quote_dup_apply_becomes_a_valid_recursive_type()
+        public void quote_dup_apply_infers_a_valid_recursive_type()
         {
-            var (norm, valid, recursive) = Infer("quote dup apply", equi: true);
+            var (norm, valid, recursive) = Infer("quote dup apply");
             Assert.That(norm, Is.EqualTo("!t0!t1.((t0 t1) -> μr0.(t0 (μr1.((r1 t1) -> r0) t1)))"));
             Assert.That(valid, Is.True);
             Assert.That(recursive, Is.True);
@@ -68,7 +45,7 @@ namespace TypeInference.Tests
         [Test]
         public void Doubly_self_applying_term_is_also_a_valid_mu_type()
         {
-            var (_, valid, recursive) = Infer("quote dup apply apply", equi: true);
+            var (_, valid, recursive) = Infer("quote dup apply apply");
             Assert.That(valid, Is.True);
             Assert.That(recursive, Is.True);
         }
@@ -76,54 +53,42 @@ namespace TypeInference.Tests
         [Test]
         public void Mu_consumption_resolves_a_chained_recursive_type()
         {
-            // The issue-#1 term feeds a recursive type into a later composition. With (rec N) the
-            // engine throws the confusing "differently sized lists" (a rec 2-array vs a function
-            // 3-array). In equirecursive mode the μ is UNFOLDED and consumed, so that arity error
-            // is gone; the term still fails, but now with the GENUINE clash it always had.
+            // The issue-#1 term feeds a recursive type into a later composition. With the old
+            // (rec N) the engine threw the confusing "differently sized lists" (a rec 2-array vs a
+            // function 3-array). Now the μ is UNFOLDED and consumed, so that arity error is gone;
+            // the term still fails, but with the GENUINE clash it always had.
             const string term = "[id] dup 0 swap apply swap [id] swap apply apply";
-
-            var off = RunRaw(term, equi: false);
-            Assert.That(off.IsFaulted, Is.True);
-            Assert.That(off.FailureMessage, Does.Contain("differently sized lists"));
-
-            var on = RunRaw(term, equi: true);
-            Assert.That(on.IsFaulted, Is.True);
-            Assert.That(on.FailureMessage, Does.Not.Contain("differently sized lists"),
-                "the μ was consumed by unfolding — the arity error is gone");
-            Assert.That(on.Error, Is.TypeOf<UnificationError>(),
+            var r = Sandbox.Run(() => Cat.InferNormalized(term));
+            Assert.That(r.IsFaulted, Is.True, $"expected a genuine type error, got {r}");
+            Assert.That(r.FailureMessage, Does.Not.Contain("differently sized lists"),
+                "the μ was consumed by unfolding — the spurious arity error is gone");
+            Assert.That(r.Error, Is.TypeOf<UnificationError>(),
                 "what remains is a genuine type error, correctly reported");
         }
 
-        private static RunResult<string> RunRaw(string term, bool equi)
+        [Test]
+        public void Inference_is_deterministic()
         {
-            var saved = Cat.Equirecursive;
-            try
-            {
-                Cat.Equirecursive = equi;
-                Cat.ResetVocabulary();
-                return Sandbox.Run(() => Cat.InferNormalized(term));
-            }
-            finally { Cat.Equirecursive = saved; Cat.ResetVocabulary(); }
+            Assert.That(Infer("dup apply").norm, Is.EqualTo(Infer("dup apply").norm));
         }
 
         [Test]
-        public void Equirecursive_inference_is_deterministic()
-        {
-            var a = Infer("dup apply", equi: true);
-            var b = Infer("dup apply", equi: true);
-            Assert.That(a.norm, Is.EqualTo(b.norm));
-        }
-
-        [Test]
-        public void Non_recursive_terms_are_identical_in_both_modes()
+        public void Non_recursive_terms_are_not_flagged_recursive()
         {
             foreach (var term in new[] { "dup", "swap quote compose apply", "quote dup", "compose dup", "0 dup" })
             {
-                var off = Infer(term, equi: false);
-                var on = Infer(term, equi: true);
-                Assert.That(on.norm, Is.EqualTo(off.norm), $"'{term}' should be unchanged when non-recursive");
-                Assert.That(on.recursive, Is.False);
+                var (_, valid, recursive) = Infer(term);
+                Assert.That(valid, Is.True, term);
+                Assert.That(recursive, Is.False, $"'{term}' is not recursive");
             }
+        }
+
+        [Test]
+        public void No_inferred_type_contains_the_retired_rec_marker()
+        {
+            foreach (var term in new[] { "dup apply", "quote dup apply", "quote dup apply apply" })
+                Assert.That(Infer(term).norm, Does.Not.Contain("(rec "),
+                    $"'{term}' must not use the retired positional (rec N) marker");
         }
     }
 }

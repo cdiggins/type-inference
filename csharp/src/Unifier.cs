@@ -14,8 +14,9 @@ namespace TypeInference
     /// Faithful port of the <c>Unifier</c> class from type-system.ts.
     ///
     /// Notable behaviors:
-    ///  * NO occurs check during unification. Cyclic types are detected lazily in
-    ///    <see cref="GetUnifiedType"/> and reported as <c>(rec N)</c>.
+    ///  * NO failing occurs check. Cyclic types are detected lazily in
+    ///    <see cref="GetUnifiedType"/> and turned into explicit equi-recursive μ-types
+    ///    (see Equirecursive.cs), which <see cref="UnifyTypes"/> then folds/unfolds.
     ///  * DEVIATION FROM THE ORIGINAL: the original fused two mismatched constants (or a
     ///    constant vs. an array) into a sum type <c>(| ...)</c>, so it never rejected a
     ///    program. Per an explicit design decision the sum types have been removed; a clash
@@ -38,13 +39,6 @@ namespace TypeInference
 
         /// <summary>Use the buggy (original) replacement, or the corrected one.</summary>
         public bool UseFixedReplace = UseFixedReplaceDefault;
-
-        /// <summary>Process-wide default for <see cref="Equirecursive"/>.</summary>
-        public static bool EquirecursiveDefault = false;
-
-        /// <summary>When true, recursion is produced/consumed as explicit μ-types
-        /// (see Equirecursive.cs) instead of the positional <c>(rec N)</c> marker.</summary>
-        public bool Equirecursive = EquirecursiveDefault;
 
         public Dictionary<string, TypeUnifier> Unifiers = new Dictionary<string, TypeUnifier>();
 
@@ -75,11 +69,10 @@ namespace TypeInference
                 UpdateAllUnifiers(v2.Name, t1);
                 return r;
             }
-            // EQUIRECURSIVE: a μ meeting a structured type is folded/unfolded coinductively.
-            // The memo set makes revisiting the same pair succeed, so this terminates (regular
-            // trees ⇒ finitely many distinct pairs). var-vs-μ was already handled above by
-            // binding the variable to the μ.
-            if (Equirecursive && (t1 is MuType || t2 is MuType))
+            // A μ meeting a structured type is folded/unfolded coinductively. The memo set makes
+            // revisiting the same pair succeed, so this terminates (regular trees ⇒ finitely many
+            // distinct pairs). var-vs-μ was already handled above by binding the variable to the μ.
+            if (t1 is MuType || t2 is MuType)
             {
                 var key = t1 + " ~≟~ " + t2;
                 if (_muAssume.Contains(key)) return t1;
@@ -131,10 +124,10 @@ namespace TypeInference
 
                 case TypeVariable tv:
                 {
-                    for (var i = 0; i < previousVars.Count; ++i)
-                        if (previousVars[i] == tv.Name)
-                            // EQUIRECURSIVE: emit a NAMED back-reference instead of a positional (rec i).
-                            return Equirecursive ? new RecVar(tv.Name) : (Type)TypeOps.RecursiveType(i);
+                    // A cycle back to a variable already being expanded is a NAMED recursion
+                    // back-reference (the μ binder is placed below, at the expansion point).
+                    if (previousVars.Contains(tv.Name))
+                        return new RecVar(tv.Name);
 
                     if (!Unifiers.TryGetValue(tv.Name, out var u))
                         return expr;
@@ -155,9 +148,8 @@ namespace TypeInference
                                 unifiedVars.Add(u.Name);
                                 body = GetUnifiedType(u.Unifier, nextPrev, unifiedVars);
                             }
-                            // EQUIRECURSIVE: if the expansion looped back to tv, bind it with a μ
-                            // placed exactly here.
-                            if (Equirecursive && Equi.ContainsRecVar(body, tv.Name))
+                            // If the expansion looped back to tv, bind it with a μ placed exactly here.
+                            if (Equi.ContainsRecVar(body, tv.Name))
                                 return new MuType(tv.Name, body);
                             return body;
                         }

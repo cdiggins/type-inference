@@ -113,13 +113,13 @@ namespace TypeInference.Tests
         }
 
         [Test]
-        public void Rejecting_clashes_does_not_by_itself_resolve_recursion()
+        public void Rejecting_clashes_is_orthogonal_to_recursion()
         {
-            // Orthogonality: `dup apply` is genuine self-application and still yields (rec 1).
-            // Removing sums is a soundness fix for clashes, not for cyclic types.
+            // Orthogonality: `dup apply` is genuine self-application; removing sums (a clash fix)
+            // is independent of how recursion is handled. It infers a μ-type either way.
             var run = Sandbox.Run(() => Cat.InferNormalized("dup apply"));
             Assert.That(run.IsOk, Is.True, run.ToString());
-            Assert.That(run.Value, Does.Contain("rec"));
+            Assert.That(run.Value, Does.Contain("μ"));
         }
     }
 }

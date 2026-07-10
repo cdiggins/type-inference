@@ -49,18 +49,16 @@ namespace TypeInference.Tests
         }
 
         [Test]
-        public void Bug_shifts_recursion_depth_on_cyclic_terms()
+        public void Bug_no_longer_diverges_on_cyclic_terms_under_mu()
         {
-            // dup apply: (rec 1) with the original bug, (rec 0) once corrected.
-            Assert.That(Eval("dup apply", useFixed: false),
-                Is.EqualTo("!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)"));
-            Assert.That(Eval("dup apply", useFixed: true),
-                Is.EqualTo("!t1.(!t0.((((rec 0) t0) -> t1) t0) -> t1)"));
-
-            Assert.That(Eval("quote dup apply", useFixed: false),
-                Is.EqualTo("!t0!t1.((t0 t1) -> (t0 ((rec 1) t1)))"));
-            Assert.That(Eval("quote dup apply", useFixed: true),
-                Is.EqualTo("!t0!t1.((t0 t1) -> (t0 ((rec 0) t1)))"));
+            // With the old (rec N) marker the bug shifted the reported recursion DEPTH
+            // (rec 1 buggy vs rec 0 corrected). Explicit μ-binders name the recursion point, so
+            // that positional artifact is gone: both variants produce μ-types on cyclic terms.
+            foreach (var term in new[] { "dup apply", "quote dup apply" })
+            {
+                Assert.That(Eval(term, useFixed: false), Does.Contain("μ"), term);
+                Assert.That(Eval(term, useFixed: true), Does.Contain("μ"), term);
+            }
         }
 
         [Test]
@@ -76,14 +74,14 @@ namespace TypeInference.Tests
                 return e.GetUnifiedType(a, new List<string>(), new HashSet<string>());
             }
 
-            // Original (buggy) engine: reconstructs cleanly as a rec type.
+            // Original (buggy) engine: reconstructs cleanly as a μ type.
             var saved = Unifier.UseFixedReplaceDefault;
             try
             {
                 Unifier.UseFixedReplaceDefault = false;
                 var buggy = Sandbox.Run(() => TypeOps.NormalizeVarNames(MakeAndReconstruct()).ToString());
                 Assert.That(buggy.IsOk, Is.True, buggy.ToString());
-                Assert.That(buggy.Value, Is.EqualTo("((rec 0) t0)"));
+                Assert.That(buggy.Value, Is.EqualTo("μr0.(r0 t0)"));
 
                 // Corrected substitution: now genuinely substitutes a structured type into a
                 // slot that cloneParameters assumes is a TypeVariable -> InvalidCastException.

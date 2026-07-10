@@ -91,13 +91,13 @@ namespace TypeInference.Tests
         }
 
         [Test]
-        public void A_cyclic_unification_reconstructs_as_rec_and_terminates()
+        public void A_cyclic_unification_reconstructs_as_a_mu_and_terminates()
         {
             var a = TypeOps.TypeVar("a");
             var pair = TypeOps.TypeArrayOf(a, TypeOps.TypeVar("b"));
             var r = Sandbox.Run(() => Resolve(e => e.UnifyTypes(a, pair), a));
             Assert.That(r.IsOk, Is.True, r.ToString());
-            Assert.That(r.Value, Does.Contain("rec"));
+            Assert.That(r.Value, Is.EqualTo("μr0.(r0 t0)"));
         }
 
         [Test]

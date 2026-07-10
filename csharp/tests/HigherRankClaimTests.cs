@@ -72,7 +72,7 @@ namespace TypeInference.Tests
         }
 
         [Test]
-        public void README_claim_for_quote_dup_apply_is_stale_actual_is_recursive()
+        public void README_claim_for_quote_dup_apply_is_stale_actual_is_a_recursive_type()
         {
             // README asserts this equals dup: !t0!t1.((t0 t1) -> (t0 (t0 t1)))
             const string readmeClaim = "!t0!t1.((t0 t1) -> (t0 (t0 t1)))";
@@ -80,13 +80,13 @@ namespace TypeInference.Tests
             var run = Sandbox.Run(() => Cat.InferNormalized("quote dup apply"));
             Assert.That(run.IsOk, Is.True, run.ToString());
 
-            // Actual current behavior: a (rec 1) creeps in — an invalid, recursive type.
-            Assert.That(run.Value, Is.EqualTo("!t0!t1.((t0 t1) -> (t0 ((rec 1) t1)))"));
+            // Actual behavior: a genuinely recursive type (now a well-formed μ-type), NOT dup.
+            Assert.That(run.Value, Is.EqualTo("!t0!t1.((t0 t1) -> μr0.(t0 (μr1.((r1 t1) -> r0) t1)))"));
             Assert.That(run.Value, Is.Not.EqualTo(readmeClaim),
-                "the README's headline follow-through does not match the shipped engine");
+                "the README's headline follow-through does not match the engine");
 
             var valid = Sandbox.Run(() => TypeOps.IsValid(Cat.Infer("quote dup apply")));
-            Assert.That(valid.Value, Is.False, "the actual result contains (rec 1) and is invalid");
+            Assert.That(valid.Value, Is.True, "the μ-type is well-formed (unlike the old (rec 1))");
         }
 
         [Test]

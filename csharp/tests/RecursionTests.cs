@@ -4,32 +4,31 @@ using NUnit.Framework;
 namespace TypeInference.Tests
 {
     /// <summary>
-    /// Examines how the engine handles cyclic (infinite) types. It deliberately has
-    /// NO occurs check during unification; cycles are detected lazily while
-    /// reconstructing the result and reported as a <c>(rec N)</c> marker. Such types
-    /// are flagged invalid by <see cref="TypeOps.IsValid"/>. A few terms escape even
-    /// this net and throw outright.
+    /// How the engine handles cyclic (infinite) types. There is no FAILING occurs check:
+    /// a cycle is detected lazily during reconstruction and turned into an explicit
+    /// equirecursive μ-type (the old positional <c>(rec N)</c> marker is retired). Such
+    /// types are well-formed; a few terms are genuinely ill-typed and throw.
     /// </summary>
     [TestFixture]
     public class RecursionTests
     {
         [Test]
-        public void Self_application_dup_apply_yields_a_rec_marker_not_a_hang()
+        public void Self_application_dup_apply_infers_a_valid_mu_type_not_a_hang()
         {
             var run = Sandbox.Run(() => Cat.InferNormalized("dup apply"));
             Assert.That(run.IsOk, Is.True, run.ToString());
-            Assert.That(run.Value, Is.EqualTo("!t1.(!t0.((((rec 1) t0) -> t1) t0) -> t1)"));
+            Assert.That(run.Value, Is.EqualTo("!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)"));
 
             var valid = Sandbox.Run(() => TypeOps.IsValid(Cat.Infer("dup apply")));
-            Assert.That(valid.Value, Is.False, "a type containing (rec N) must be reported invalid");
+            Assert.That(valid.Value, Is.True, "the μ-type is well-formed");
         }
 
         [Test]
-        public void No_occurs_check_but_reconstruction_terminates_with_rec()
+        public void No_failing_occurs_check_reconstruction_yields_a_mu()
         {
-            // Unify a with (a b): a classic occurs-check violation. There is no occurs
-            // check, so unification succeeds; the cycle is only caught when the unified
-            // type is reconstructed, producing a (rec ...) rather than looping forever.
+            // Unify a with (a b): a classic occurs-check violation. There is no failing occurs
+            // check, so unification succeeds; the cycle is caught during reconstruction and
+            // surfaced as μr0.(r0 t0) rather than looping forever.
             var run = Sandbox.Run(() =>
             {
                 var a = TypeOps.TypeVar("a");
@@ -37,53 +36,53 @@ namespace TypeInference.Tests
                 var pair = TypeOps.TypeArrayOf(a, b);   // (a b)
 
                 var e = new Unifier();
-                e.UnifyTypes(a, pair);                  // no occurs check -> succeeds
+                e.UnifyTypes(a, pair);
                 var reconstructed = e.GetUnifiedType(a, new List<string>(), new HashSet<string>());
                 return TypeOps.NormalizeVarNames(reconstructed).ToString();
             });
 
             Assert.That(run.IsOk, Is.True, run.ToString());
-            Assert.That(run.Value, Does.Contain("rec"),
-                "the cyclic unifier must be surfaced as a (rec N) marker, and must terminate");
+            Assert.That(run.Value, Is.EqualTo("μr0.(r0 t0)"));
         }
 
         [Test]
-        public void Several_variance_terms_produce_rec_types()
+        public void Variance_terms_infer_recursive_mu_or_clean_types()
         {
-            // Captured from the author's own run — these are documented, not surprises.
-            var cases = new Dictionary<string, string>
+            // A term with no self-application types cleanly; the self-applying ones infer μ-types.
+            var clean = Sandbox.Run(() => Cat.InferNormalized("[0] dip apply"));
+            Assert.That(clean.Value, Is.EqualTo("!t1.(!t0.(((Num t0) -> t1) t0) -> t1)"));
+
+            var rec = Sandbox.Run(() => Cat.InferNormalized("dup [0] dip apply"));
+            Assert.That(rec.Value, Is.EqualTo("!t1.(!t0.(μr0.((Num (r0 t0)) -> t1) t0) -> t1)"));
+
+            foreach (var term in new[] { "dup [0] dip apply", "[] dup [0] dip apply" })
             {
-                ["[0] dip apply"]           = "!t1.(!t0.(((Num t0) -> t1) t0) -> t1)",         // clean
-                ["dup [0] dip apply"]       = "!t1.(!t0.(((Num ((rec 1) t0)) -> t1) t0) -> t1)", // rec
-                ["[] dup [0] dip apply"]    = "!t0.(t0 -> (Num ((rec 1) t0)))",                // rec
-            };
-            foreach (var kv in cases)
-            {
-                var run = Sandbox.Run(() => Cat.InferNormalized(kv.Key));
-                Assert.That(run.IsOk, Is.True, $"{kv.Key}: {run}");
-                Assert.That(run.Value, Is.EqualTo(kv.Value), kv.Key);
+                var r = Sandbox.Run(() => (Equi.IsRecursive(Cat.Infer(term)), TypeOps.IsValid(Cat.Infer(term))));
+                Assert.That(r.Value.Item1, Is.True, $"{term} is recursive");
+                Assert.That(r.Value.Item2, Is.True, $"{term} is a valid μ-type");
             }
         }
 
         [Test]
-        public void StoryYeller_issue_term_throws_differently_sized_lists()
+        public void StoryYeller_issue_term_is_a_genuine_type_error()
         {
-            // Issue #1 reported on the original repo. This is the algorithm's partiality
-            // showing through: not a sum type, not a rec marker — a hard exception. The
-            // sandbox catches it so the runner is unaffected.
+            // Issue #1 on the original repo. With the old (rec N) marker this threw the confusing
+            // "differently sized lists" (a rec 2-array vs a function 3-array). Now the μ is
+            // unfolded and consumed, exposing the term's GENUINE clash: a Num used as a function.
             const string term = "[id] dup 0 swap apply swap [id] swap apply apply";
             var run = Sandbox.Run(() => Cat.InferNormalized(term));
 
             Assert.That(run.IsFaulted, Is.True, $"expected a thrown error, got: {run}");
-            Assert.That(run.FailureMessage, Does.Contain("differently sized lists"));
+            Assert.That(run.Error, Is.TypeOf<UnificationError>());
+            Assert.That(run.FailureMessage, Does.Not.Contain("differently sized lists"));
         }
 
         [Test]
-        public void IsValid_flags_rec_types_and_accepts_ordinary_ones()
+        public void The_legacy_rec_constant_is_still_rejected_defensively()
         {
-            var recType = TypeOps.RecursiveType(0);
-            Assert.That(TypeOps.IsValid(recType), Is.False);
-
+            // The engine no longer produces it, but if a (rec N) marker were constructed it is
+            // still flagged invalid; ordinary types remain valid.
+            Assert.That(TypeOps.IsValid(TypeOps.RecursiveType(0)), Is.False);
             var ok = Sandbox.Run(() => TypeOps.IsValid(Cat.Infer("dup")));
             Assert.That(ok.Value, Is.True);
         }

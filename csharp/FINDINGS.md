@@ -17,9 +17,9 @@ experiments. Every claim below is tied to a runnable test.
 
 | Dimension | Verdict |
 |---|---|
-| **Viability** | Works and terminates on the concatenative fragment it targets. Fast. Partial: some terms throw, some yield invalid `(rec N)` "types". |
+| **Viability** | Works and terminates on the concatenative fragment it targets. Fast. Recursion is inferred as an explicit `μ`-type (originally an invalid `(rec N)` marker); some genuinely ill-typed terms throw. |
 | **Novelty** | The stack/row-polymorphic typing is standard (Kerby; Diggins 2008). The genuinely interesting idea is **positional `∀`-placement** (`computeParameters`) that yields rank-N types *with no annotations and no guessing* — sidestepping the undecidability that blocks HM-style rank-N inference. Narrow but real. |
-| **Correctness (as a checker)** | Originally **unsound**: it never rejected a clash (mismatched constants fused into sum types), has **no occurs check** (cycles become post-hoc `(rec N)` markers), and is partial (raw throws). The port has since **removed sum types** (a clash is now a real error); the occurs-check and partiality issues remain. |
+| **Correctness (as a checker)** | Originally **unsound**: it never rejected a clash (mismatched constants fused into sum types) and turned cycles into post-hoc invalid `(rec N)` markers. The port has since **removed sum types** (a clash is now a real error) and turned recursion into proper **equirecursive `μ`-types**; some genuinely ill-typed terms still throw rather than returning a typed error. |
 | **Headline strength** | Real: `quote dup` gets two *independent* nested `∀`s — genuinely beyond prenex HM. |
 | **Headline caveat** | The README's own next example (`quote dup apply`) is **stale**: it claims `(t0 (t0 t1))`; the shipped engine produces the invalid `(t0 ((rec 1) t1))`. |
 
@@ -142,12 +142,12 @@ check the caller must remember to run.
 
 *Could `(rec N)` be a valid (equirecursive/μ) type instead?* In principle yes — unification without
 an occurs check IS rational-tree/equirecursive unification, so the engine already computes the
-recursive type; only the `isValid` label rejects it. But not with this encoding (`RecursiveTypeTests`):
-`N` counts reconstruction steps, not tree nodes, so the μ-binder is not recoverable from the printed
-type (two `(rec 0)` in one type sit at tree depths 2 and 3); `N` is not even stable (`ReplaceBugTests`
-flips it 1↔0); and the unifier cannot *consume* a rec marker — it treats `(rec N)` as a dumb 2-array,
-silently absorbing concrete types, crashing on arity mismatch, and equating distinct recursion levels.
-Making rec a real type needs explicit μ-binders + fold/unfold unification, not a flag flip.
+recursive type; only the `isValid` label rejects it. But the original positional encoding could not
+carry it: `N` counted reconstruction steps, not tree nodes, so the μ-binder was not recoverable from
+the printed type (two `(rec 0)` in one type could sit at different tree depths); `N` was not even
+stable (`ReplaceBugTests` shows it flipping 1↔0); and the unifier could not *consume* a rec marker —
+it treated `(rec N)` as a dumb 2-array. Making rec a real type needs explicit μ-binders + fold/unfold
+unification, which is exactly what the integration below adds.
 
 **Implemented (this port): a coinductive equi-recursive unifier** — `src/RecursiveTypes.cs`,
 tested in `RecursiveUnifierTests`. It represents recursion with an explicit `μX.T` binder and
@@ -159,24 +159,24 @@ correct answer on the exact cases the positional `(rec N)` botched — see the m
 full algorithm, decidability argument (regular trees ⇒ finitely many pairs), and references
 (Amadio–Cardelli; Brandt–Henglein).
 
-**And now wired into the engine** — `src/Equirecursive.cs`, tested in
-`EquirecursiveIntegrationTests`. With `Cat.Equirecursive` on, `GetUnifiedType` emits an explicit
-`μ`-binder (named back-reference) at the recursion point instead of the positional `(rec N)`, and
-`UnifyTypes` folds/unfolds `μ` with a per-unifier memo set so a recursive type flowing into a later
-composition is consumed rather than mangled. `computeParameters`/`descendantTypes`/`normalizeVarNames`
-treat `μ` as a transparent wrapper (and never ∀-quantify a recursion variable). Result: `dup apply`
-now infers the **valid** recursive type `!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)` (the type of
-`λx.x x`) instead of the invalid `(rec 1)`, `quote dup apply` becomes a valid nested-`μ` type, and the
-issue-#1 term no longer throws the spurious "differently sized lists" (the `μ` is unfolded; what
-remains is the genuine clash). The flag is off by default, so the whole FidelityTests corpus is
-unchanged.
+**And now wired into the engine as the default** — `src/Equirecursive.cs`, tested in
+`EquirecursiveIntegrationTests`. The positional `(rec N)` marker is **retired**: `GetUnifiedType`
+emits an explicit `μ`-binder (named back-reference) at the recursion point, and `UnifyTypes`
+folds/unfolds `μ` with a per-unifier memo set so a recursive type flowing into a later composition is
+consumed rather than mangled. `computeParameters`/`descendantTypes`/`normalizeVarNames` treat `μ` as a
+transparent wrapper (and never ∀-quantify a recursion variable). Result: `dup apply` now infers the
+**valid** recursive type `!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)` (the type of `λx.x x`) instead of
+the invalid `(rec 1)`, `quote dup apply` becomes a valid nested-`μ` type, and the issue-#1 term no
+longer throws the spurious "differently sized lists" (the `μ` is unfolded; what remains is the genuine
+clash). Recursion is the one place the engine now diverges from the original node output (`FidelityTests`
+carries the single updated `dup apply` case); everything else is unchanged.
 
 ### 6.3 Partiality — raw exceptions
-Some terms neither type nor produce `(rec N)` — they throw. The reported issue #1 term
-`[id] dup 0 swap apply swap [id] swap apply apply` throws **"Cannot unify differently sized
-lists"** (`StoryYeller_issue_term_throws_differently_sized_lists`). Inference is thus a partial
-function with three outcomes: a valid type, an invalid `(rec)` type, or an exception. A production
-front-end must handle all three.
+Genuinely ill-typed terms throw rather than returning a typed error. The reported issue #1 term
+`[id] dup 0 swap apply swap [id] swap apply apply` is truly ill-typed (a `Num` used as a function);
+it now throws a `UnificationError` for exactly that clash (`StoryYeller_issue_term_is_a_genuine_type_error`).
+So inference is a partial function with two outcomes — a valid type (recursive or not) or an
+exception — and a production front-end should turn the latter into a diagnostic rather than a throw.
 
 ---
 
@@ -221,12 +221,13 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
 
 ## 9. Weaknesses (ranked)
 
-1. **Unsound as a checker** — originally sum-type fusion + no occurs check + raw throws (§6). Sum
-   fusion has been removed in the port (clashes now error); the occurs-check gap and partiality
-   remain. Fine for a research prototype, still not a compiler front-end as-is.
-2. **README example stale** (§5) — erodes trust in the artifact; easy to fix.
-3. **`(rec N)` is a value, not an error** — validity is a bolt-on. Recursion should be caught *in*
-   unification (an occurs check) so inference is total-with-explicit-failure.
+1. **Unsound as a checker** — originally sum-type fusion + invalid `(rec N)` + raw throws (§6). The
+   port has removed sum fusion (clashes now error) and turned recursion into proper `μ`-types; the
+   remaining gap is partiality (ill-typed terms throw). Fine for a research prototype; a front-end
+   would still want the throws turned into diagnostics.
+2. **README example stale** (§5) — erodes trust in the artifact; fixed.
+3. **`(rec N)` was a value, not an error** — *addressed*: recursion is now caught during
+   reconstruction and turned into an explicit `μ`-type the unifier can consume (§6.2).
 4. **Two entangled bugs** in substitution/cloning (§7).
 5. **`id` is mis-typed for a stack language** — `('a -> 'a)` treats `id` as value→value, not
    stack→stack (why `["id", …]` is commented out in the original tests). Minor but telling: it
@@ -244,14 +245,13 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
   reachable is a contravariant position where the correct answer is an empty *meet* (a type error),
   not a *join* (a union) — so the mechanism was producing the wrong lattice operation. Revisit union
   types only as a deliberate feature (at a genuine join point, variance-aware) if the language gains
-  branching/heterogeneous constructs. Still **pair with an occurs check** — removing sums is
-  orthogonal to recursion (`dup apply` still `(rec 1)`).
+  branching/heterogeneous constructs. Removing sums is orthogonal to recursion — the two fixes are
+  independent.
 * **Make recursion a real type** ✅ (this port). A coinductive fold/unfold μ-unifier
-  (`src/RecursiveTypes.cs`) is now wired into the engine (`src/Equirecursive.cs`, `Cat.Equirecursive`):
-  the occurs situation produces an explicit `μ` at reconstruction, and unification consumes `μ` via
-  unfold + a memo set, so recursive terms infer valid μ-types end-to-end (§6.2). Remaining polish:
-  make it the default (retire `(rec N)`), and add μ-fold/unfold to the isolated `RecursiveTypeTests`
-  probes.
+  (`src/RecursiveTypes.cs`) is wired into the engine as the **default** (`src/Equirecursive.cs`): the
+  positional `(rec N)` is retired; reconstruction produces an explicit `μ`, and unification consumes
+  `μ` via unfold + a memo set, so recursive terms infer valid μ-types end-to-end (§6.2). Remaining
+  polish: turn the residual raw throws (§6.3) into typed diagnostics.
 * **Repair the substitution + cloneParameters pair together** (§7); add the `unify(a,(a b))` case as
   a regression test.
 * **Return an explicit result** (`Ok | Recursive | Error`) from inference instead of sometimes
@@ -262,7 +262,7 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
 
 ## Appendix — test map
 
-290 tests, fully sandboxed.
+284 tests, fully sandboxed.
 
 | Concern | Fixture |
 |---|---|
@@ -270,8 +270,7 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
 | Rank-N claim / README discrepancy | `HigherRankClaimTests` |
 | `quote dup apply` root cause + fix | `RootCauseTests` |
 | Soundness: constant clashes now rejected | `SoundnessTests` |
-| No occurs check, `(rec N)`, partiality | `RecursionTests` |
-| Could `(rec N)` be a valid μ-type? | `RecursiveTypeTests` |
+| No failing occurs check → μ; partiality | `RecursionTests` |
 | Coinductive fold/unfold μ-unifier (standalone) | `RecursiveUnifierTests` |
 | Equirecursive μ-types wired into the engine | `EquirecursiveIntegrationTests` |
 | Entangled substitution/clone bugs | `ReplaceBugTests` |

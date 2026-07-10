@@ -9,7 +9,7 @@ namespace TypeInference
     //
     //  THE ORIGINAL.  type-system.ts has no occurs check. During reconstruction (getUnifiedType)
     //  a cycle is detected and emitted as a positional marker `(rec N)`, where N counts
-    //  reconstruction steps. As RecursiveTypeTests shows, that marker is
+    //  reconstruction steps. That marker was
     //    (a) not self-contained — N is not a tree address, so two `(rec 0)` in one type can denote
     //        different binders;
     //    (b) not stable — the `_replaceVarWithType` bug shifts it (rec 1 vs rec 0);
