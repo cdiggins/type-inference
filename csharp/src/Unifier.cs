@@ -39,7 +39,17 @@ namespace TypeInference
         /// <summary>Use the buggy (original) replacement, or the corrected one.</summary>
         public bool UseFixedReplace = UseFixedReplaceDefault;
 
+        /// <summary>Process-wide default for <see cref="Equirecursive"/>.</summary>
+        public static bool EquirecursiveDefault = false;
+
+        /// <summary>When true, recursion is produced/consumed as explicit μ-types
+        /// (see Equirecursive.cs) instead of the positional <c>(rec N)</c> marker.</summary>
+        public bool Equirecursive = EquirecursiveDefault;
+
         public Dictionary<string, TypeUnifier> Unifiers = new Dictionary<string, TypeUnifier>();
+
+        // Memo (assumption) set for the coinductive fold/unfold; scoped to this unifier.
+        private readonly HashSet<string> _muAssume = new HashSet<string>();
 
         // --- top-level unification ----------------------------------------------
 
@@ -64,6 +74,19 @@ namespace TypeInference
                 var r = UpdateUnifier(v2, t1, depth);
                 UpdateAllUnifiers(v2.Name, t1);
                 return r;
+            }
+            // EQUIRECURSIVE: a μ meeting a structured type is folded/unfolded coinductively.
+            // The memo set makes revisiting the same pair succeed, so this terminates (regular
+            // trees ⇒ finitely many distinct pairs). var-vs-μ was already handled above by
+            // binding the variable to the μ.
+            if (Equirecursive && (t1 is MuType || t2 is MuType))
+            {
+                var key = t1 + " ~≟~ " + t2;
+                if (_muAssume.Contains(key)) return t1;
+                _muAssume.Add(key);
+                var u1 = t1 is MuType m1 ? Equi.Unfold(m1) : t1;
+                var u2 = t2 is MuType m2 ? Equi.Unfold(m2) : t2;
+                return UnifyTypes(u1, u2, depth);
             }
             if (t1 is TypeConstant c1 && t2 is TypeConstant c2)
             {
@@ -103,11 +126,15 @@ namespace TypeInference
                 case TypeConstant:
                     return expr;
 
+                case RecVar:
+                    return expr; // EQUIRECURSIVE: a bound recursion variable is terminal
+
                 case TypeVariable tv:
                 {
                     for (var i = 0; i < previousVars.Count; ++i)
                         if (previousVars[i] == tv.Name)
-                            return TypeOps.RecursiveType(i); // cyclic reference
+                            // EQUIRECURSIVE: emit a NAMED back-reference instead of a positional (rec i).
+                            return Equirecursive ? new RecVar(tv.Name) : (Type)TypeOps.RecursiveType(i);
 
                     if (!Unifiers.TryGetValue(tv.Name, out var u))
                         return expr;
@@ -120,18 +147,27 @@ namespace TypeInference
                         case TypeArray ua:
                         {
                             var nextPrev = Prepend(tv.Name, previousVars);
+                            Type body;
                             if (unifiedVars.Contains(u.Name))
+                                body = GetUnifiedType(ua.FreshParameterNames(), nextPrev, unifiedVars);
+                            else
                             {
-                                var u2 = ua.FreshParameterNames();
-                                return GetUnifiedType(u2, nextPrev, unifiedVars);
+                                unifiedVars.Add(u.Name);
+                                body = GetUnifiedType(u.Unifier, nextPrev, unifiedVars);
                             }
-                            unifiedVars.Add(u.Name);
-                            return GetUnifiedType(u.Unifier, nextPrev, unifiedVars);
+                            // EQUIRECURSIVE: if the expansion looped back to tv, bind it with a μ
+                            // placed exactly here.
+                            if (Equirecursive && Equi.ContainsRecVar(body, tv.Name))
+                                return new MuType(tv.Name, body);
+                            return body;
                         }
                         default:
                             throw new Exception("Unhandled kind of type " + expr);
                     }
                 }
+
+                case MuType mu:
+                    return new MuType(mu.Bound, GetUnifiedType(mu.Body, previousVars, unifiedVars));
 
                 case TypeArray ta:
                 {
@@ -212,6 +248,10 @@ namespace TypeInference
                     // variable name; this yields a structural clone that leaves variables
                     // unchanged. Reproduced exactly:
                     return ta.Clone(new Dictionary<string, Type> { ["varName"] = replace });
+                case MuType mu: // EQUIRECURSIVE
+                    return new MuType(mu.Bound, ReplaceVarWithType(mu.Body, varName, replace));
+                case RecVar:
+                    return target;
                 default:
                     throw new Exception("Unrecognized kind of type " + target);
             }
@@ -236,6 +276,10 @@ namespace TypeInference
                     return target;
                 case TypeArray ta:
                     return ta.Clone(new Dictionary<string, Type> { [varName] = replace });
+                case MuType mu: // EQUIRECURSIVE
+                    return new MuType(mu.Bound, ReplaceVarWithTypeFixed(mu.Body, varName, replace));
+                case RecVar:
+                    return target;
                 default:
                     throw new Exception("Unrecognized kind of type " + target);
             }

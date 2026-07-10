@@ -133,10 +133,12 @@ namespace TypeInference
 
             TypeParameterVars = new List<TypeVariable>();
 
-            // Recurse into children first.
+            // Recurse into children first (μ is transparent — recurse into its body).
             foreach (var t in Types)
                 if (t is TypeArray ta)
                     ta.ComputeParameters();
+                else if (t is MuType mu && mu.Body is TypeArray mb) // EQUIRECURSIVE
+                    mb.ComputeParameters();
 
             for (var i = 0; i < Types.Count; ++i)
             {
@@ -146,11 +148,13 @@ namespace TypeInference
                 {
                     TypeOps.ReassignAllTypeVars(cv.Name, this);
                 }
-                else if (child is TypeArray childArray)
+                // A μ child exposes its body's free variables (TypeVars), so it is treated like a
+                // TypeArray child for the "shared across siblings" check.
+                else if (child is TypeArray || child is MuType)
                 {
                     // If any of the child's variables also appear in a sibling, this
                     // variable belongs to the parent, not the child.
-                    foreach (var childVar in childArray.TypeVars)
+                    foreach (var childVar in child.TypeVars)
                         if (TypeOps.IsTypeVarUsedElsewhere(this, childVar.Name, i))
                             TypeOps.ReassignAllTypeVars(childVar.Name, this);
                 }

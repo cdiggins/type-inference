@@ -157,9 +157,19 @@ first-class type the unifier can both *produce* (the occurs check introduces `a 
 `μX.(Num→X) ≡ μY.(Num→(Num→Y))`, honors the fold/unfold law `μX.T ≡ T[X:=μX.T]`, and gives the
 correct answer on the exact cases the positional `(rec N)` botched — see the module header for the
 full algorithm, decidability argument (regular trees ⇒ finitely many pairs), and references
-(Amadio–Cardelli; Brandt–Henglein). It is a self-contained reference core; wiring it into the main
-engine's reconstruction (so end-to-end inference emits μ) — which also touches
-`computeParameters`/`normalizeVarNames` — is the remaining follow-on.
+(Amadio–Cardelli; Brandt–Henglein).
+
+**And now wired into the engine** — `src/Equirecursive.cs`, tested in
+`EquirecursiveIntegrationTests`. With `Cat.Equirecursive` on, `GetUnifiedType` emits an explicit
+`μ`-binder (named back-reference) at the recursion point instead of the positional `(rec N)`, and
+`UnifyTypes` folds/unfolds `μ` with a per-unifier memo set so a recursive type flowing into a later
+composition is consumed rather than mangled. `computeParameters`/`descendantTypes`/`normalizeVarNames`
+treat `μ` as a transparent wrapper (and never ∀-quantify a recursion variable). Result: `dup apply`
+now infers the **valid** recursive type `!t1.(!t0.(μr0.((r0 t0) -> t1) t0) -> t1)` (the type of
+`λx.x x`) instead of the invalid `(rec 1)`, `quote dup apply` becomes a valid nested-`μ` type, and the
+issue-#1 term no longer throws the spurious "differently sized lists" (the `μ` is unfolded; what
+remains is the genuine clash). The flag is off by default, so the whole FidelityTests corpus is
+unchanged.
 
 ### 6.3 Partiality — raw exceptions
 Some terms neither type nor produce `(rec N)` — they throw. The reported issue #1 term
@@ -236,10 +246,12 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
   types only as a deliberate feature (at a genuine join point, variance-aware) if the language gains
   branching/heterogeneous constructs. Still **pair with an occurs check** — removing sums is
   orthogonal to recursion (`dup apply` still `(rec 1)`).
-* **Make recursion a real type** ✅ (reference core, this port). A coinductive fold/unfold μ-unifier
-  now exists (`src/RecursiveTypes.cs`, §6.2). The occurs check introduces `μ` instead of failing, and
-  unification consumes `μ` via unfold + a memo set. Follow-on: emit `μ` from the main engine's
-  reconstruction (touches `computeParameters`/`normalizeVarNames`).
+* **Make recursion a real type** ✅ (this port). A coinductive fold/unfold μ-unifier
+  (`src/RecursiveTypes.cs`) is now wired into the engine (`src/Equirecursive.cs`, `Cat.Equirecursive`):
+  the occurs situation produces an explicit `μ` at reconstruction, and unification consumes `μ` via
+  unfold + a memo set, so recursive terms infer valid μ-types end-to-end (§6.2). Remaining polish:
+  make it the default (retire `(rec N)`), and add μ-fold/unfold to the isolated `RecursiveTypeTests`
+  probes.
 * **Repair the substitution + cloneParameters pair together** (§7); add the `unify(a,(a b))` case as
   a regression test.
 * **Return an explicit result** (`Ok | Recursive | Error`) from inference instead of sometimes
@@ -250,7 +262,7 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
 
 ## Appendix — test map
 
-282 tests, fully sandboxed.
+290 tests, fully sandboxed.
 
 | Concern | Fixture |
 |---|---|
@@ -260,7 +272,8 @@ Measured impact (buggy vs. corrected, across the 69-term corpus):
 | Soundness: constant clashes now rejected | `SoundnessTests` |
 | No occurs check, `(rec N)`, partiality | `RecursionTests` |
 | Could `(rec N)` be a valid μ-type? | `RecursiveTypeTests` |
-| Coinductive fold/unfold μ-unifier (implemented) | `RecursiveUnifierTests` |
+| Coinductive fold/unfold μ-unifier (standalone) | `RecursiveUnifierTests` |
+| Equirecursive μ-types wired into the engine | `EquirecursiveIntegrationTests` |
 | Entangled substitution/clone bugs | `ReplaceBugTests` |
 | Algebraic laws, identities, associativity | `AlgebraicLawTests` |
 | Quantifier placement (`computeParameters`) | `ComputeParametersTests` |

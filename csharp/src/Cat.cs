@@ -153,6 +153,16 @@ namespace TypeInference
         /// </summary>
         public static bool UseLeftFold = false;
 
+        /// <summary>
+        /// Experiment hook (default false). When true, the engine produces and consumes real
+        /// equirecursive μ-types instead of the positional `(rec N)` marker (see Equirecursive.cs).
+        /// </summary>
+        public static bool Equirecursive
+        {
+            get => Unifier.EquirecursiveDefault;
+            set => Unifier.EquirecursiveDefault = value;
+        }
+
         private static TypeArray Compose(System.Collections.Generic.IReadOnlyList<TypeArray> fxns) =>
             UseLeftFold ? TypeOps.ComposeFunctionChain(fxns) : TypeOps.ComposeFunctionChainReverse(fxns);
 

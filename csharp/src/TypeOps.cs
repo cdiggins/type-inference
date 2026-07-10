@@ -79,6 +79,8 @@ namespace TypeInference
             if (t is TypeArray a)
                 foreach (var c in a.Types)
                     DescendantTypes(c, r);
+            else if (t is MuType mu) // EQUIRECURSIVE: a μ is transparent to traversal
+                DescendantTypes(mu.Body, r);
             return r;
         }
 
@@ -121,14 +123,19 @@ namespace TypeInference
 
         // --- variable-name normalization ----------------------------------------
 
-        /// <summary>Rename variables to t0..tN in pre-order of first appearance.</summary>
+        /// <summary>Rename type variables to t0..tN (and μ-bound recursion variables to r0..rN)
+        /// in pre-order of first appearance.</summary>
         public static Type NormalizeVarNames(Type t)
         {
             var names = new Dictionary<string, Type>();
-            var count = 0;
+            int count = 0, recCount = 0;
             foreach (var dt in DescendantTypes(t))
+            {
                 if (dt is TypeVariable v && !names.ContainsKey(v.Name))
                     names[v.Name] = TypeVar("t" + count++);
+                else if (dt is MuType mu && !names.ContainsKey(mu.Bound)) // EQUIRECURSIVE
+                    names[mu.Bound] = new RecVar("r" + recCount++);
+            }
             return t.Clone(names);
         }
 
@@ -281,6 +288,8 @@ namespace TypeInference
             {
                 TypeVariable v => v.Name,
                 TypeConstant c => c.Name,
+                RecVar rv => rv.Name,                                   // EQUIRECURSIVE
+                MuType mu => "μ" + mu.Bound + "." + TypeToString(mu.Body), // EQUIRECURSIVE
                 TypeArray a => "[" + string.Join(" ", a.Types.Select(TypeToString)) + "]",
                 _ => throw new Exception("unreachable")
             };
